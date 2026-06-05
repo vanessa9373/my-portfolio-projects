@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-headless
+  labels:
+    app: mongo
+    component: database
+spec:
+  clusterIP: None
+  selector:
+    app: mongo
+  ports:
+    - name: mongo
+      port: 27017
+      targetPort: 27017
+  # Headless service for MongoDB StatefulSet
+  # Each pod gets DNS: mongo-{0,1,2}.mongo-headless.<namespace>.svc.cluster.local

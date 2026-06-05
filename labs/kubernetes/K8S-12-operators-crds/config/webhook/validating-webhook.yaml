@@ -1,0 +1,58 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: mydatabase-validating-webhook
+  annotations:
+    cert-manager.io/inject-ca-from: mydatabase-operator-system/mydatabase-serving-cert
+webhooks:
+  - name: validate.mydatabase.database.example.com
+    admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: mydatabase-webhook-service
+        namespace: mydatabase-operator-system
+        path: /validate-database-example-com-v1alpha1-mydatabase
+    rules:
+      - apiGroups:
+          - database.example.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - mydatabases
+    sideEffects: None
+    failurePolicy: Fail
+    timeoutSeconds: 10
+    matchPolicy: Equivalent
+---
+# Certificate for the webhook (requires cert-manager)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mydatabase-serving-cert
+  namespace: mydatabase-operator-system
+spec:
+  dnsNames:
+    - mydatabase-webhook-service.mydatabase-operator-system.svc
+    - mydatabase-webhook-service.mydatabase-operator-system.svc.cluster.local
+  issuerRef:
+    kind: ClusterIssuer
+    name: selfsigned-issuer
+  secretName: mydatabase-webhook-server-cert
+---
+# Webhook Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mydatabase-webhook-service
+  namespace: mydatabase-operator-system
+spec:
+  ports:
+    - port: 443
+      targetPort: 9443
+      protocol: TCP
+  selector:
+    control-plane: controller-manager

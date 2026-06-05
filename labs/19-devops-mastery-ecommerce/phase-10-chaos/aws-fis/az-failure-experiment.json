@@ -1,0 +1,158 @@
+{
+  "description": "Simulates an Availability Zone failure by stopping EC2 instances and disrupting network connectivity in a single AZ. This experiment validates that the e-commerce platform maintains availability during a complete AZ outage by verifying auto-scaling, load balancer health checks, and cross-AZ failover for stateful services.",
+  "tags": {
+    "Project": "ecommerce-platform",
+    "Environment": "production",
+    "ExperimentType": "az-failure",
+    "Owner": "platform-engineering",
+    "ChaosCategory": "infrastructure"
+  },
+  "targets": {
+    "ec2-instances-in-target-az": {
+      "resourceType": "aws:ec2:instance",
+      "selectionMode": "ALL",
+      "resourceTags": {
+        "Environment": "production",
+        "ManagedBy": "ecommerce-platform"
+      },
+      "filters": [
+        {
+          "path": "Placement.AvailabilityZone",
+          "values": [
+            "us-east-1a"
+          ]
+        },
+        {
+          "path": "State.Name",
+          "values": [
+            "running"
+          ]
+        }
+      ],
+      "parameters": {}
+    },
+    "ec2-instances-for-network-disruption": {
+      "resourceType": "aws:ec2:instance",
+      "selectionMode": "ALL",
+      "resourceTags": {
+        "Environment": "production",
+        "ManagedBy": "ecommerce-platform"
+      },
+      "filters": [
+        {
+          "path": "Placement.AvailabilityZone",
+          "values": [
+            "us-east-1a"
+          ]
+        },
+        {
+          "path": "State.Name",
+          "values": [
+            "running"
+          ]
+        }
+      ],
+      "parameters": {}
+    },
+    "target-subnet": {
+      "resourceType": "aws:ec2:subnet",
+      "selectionMode": "ALL",
+      "resourceTags": {
+        "Environment": "production",
+        "AvailabilityZone": "us-east-1a"
+      },
+      "parameters": {}
+    }
+  },
+  "actions": {
+    "stop-ec2-instances": {
+      "actionId": "aws:ec2:stop-instances",
+      "description": "Stop all production EC2 instances in the target AZ to simulate compute failure. Instances will be restarted after the experiment duration or when the stop condition triggers.",
+      "parameters": {
+        "startInstancesAfterDuration": "PT10M"
+      },
+      "targets": {
+        "Instances": "ec2-instances-in-target-az"
+      },
+      "startAfter": []
+    },
+    "inject-network-disruption": {
+      "actionId": "aws:network:disrupt-connectivity",
+      "description": "Disrupt network connectivity for instances in the target AZ to simulate network partition. This ensures that even if instances are not fully stopped, they cannot communicate with other AZs.",
+      "parameters": {
+        "duration": "PT10M",
+        "scope": "all"
+      },
+      "targets": {
+        "Subnets": "target-subnet"
+      },
+      "startAfter": []
+    },
+    "inject-network-latency": {
+      "actionId": "aws:ssm:send-command",
+      "description": "Inject high network latency on surviving instances in the target AZ to simulate degraded connectivity before full outage. This models the realistic scenario where network degradation precedes complete failure.",
+      "parameters": {
+        "documentArn": "arn:aws:ssm:us-east-1::document/AWSFIS-Run-Network-Latency",
+        "documentParameters": "{\"DurationSeconds\":\"600\",\"DelayMilliseconds\":\"5000\",\"JitterMilliseconds\":\"500\",\"Interface\":\"eth0\",\"InstallDependencies\":\"True\"}",
+        "duration": "PT10M"
+      },
+      "targets": {
+        "Instances": "ec2-instances-for-network-disruption"
+      },
+      "startAfter": []
+    },
+    "inject-packet-loss": {
+      "actionId": "aws:ssm:send-command",
+      "description": "Inject packet loss on instances in the target AZ to simulate unreliable network conditions that typically accompany AZ degradation events.",
+      "parameters": {
+        "documentArn": "arn:aws:ssm:us-east-1::document/AWSFIS-Run-Network-Packet-Loss",
+        "documentParameters": "{\"DurationSeconds\":\"600\",\"LossPercent\":\"80\",\"Interface\":\"eth0\",\"InstallDependencies\":\"True\"}",
+        "duration": "PT10M"
+      },
+      "targets": {
+        "Instances": "ec2-instances-for-network-disruption"
+      },
+      "startAfter": []
+    },
+    "pause-before-instance-stop": {
+      "actionId": "aws:fis:wait",
+      "description": "Wait 2 minutes after network disruption begins before stopping instances. This models realistic AZ failure progression where network issues precede compute failure.",
+      "parameters": {
+        "duration": "PT2M"
+      },
+      "startAfter": [
+        "inject-network-latency",
+        "inject-packet-loss"
+      ]
+    }
+  },
+  "stopConditions": [
+    {
+      "source": "aws:cloudwatch:alarm",
+      "value": "arn:aws:cloudwatch:us-east-1:ACCOUNT_ID:alarm:ecommerce-high-error-rate-critical"
+    },
+    {
+      "source": "aws:cloudwatch:alarm",
+      "value": "arn:aws:cloudwatch:us-east-1:ACCOUNT_ID:alarm:ecommerce-revenue-impact-threshold"
+    },
+    {
+      "source": "aws:cloudwatch:alarm",
+      "value": "arn:aws:cloudwatch:us-east-1:ACCOUNT_ID:alarm:ecommerce-order-failure-rate-critical"
+    }
+  ],
+  "roleArn": "arn:aws:iam::ACCOUNT_ID:role/ecommerce-fis-experiment-role",
+  "logConfiguration": {
+    "cloudWatchLogsConfiguration": {
+      "logGroupArn": "arn:aws:logs:us-east-1:ACCOUNT_ID:log-group:/aws/fis/ecommerce-experiments:*"
+    },
+    "s3Configuration": {
+      "bucketName": "ecommerce-chaos-experiment-logs",
+      "prefix": "fis/az-failure"
+    },
+    "logSchemaVersion": 2
+  },
+  "experimentOptions": {
+    "accountTargeting": "single-account",
+    "emptyTargetResolutionMode": "fail"
+  }
+}

@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-backend
+  namespace: k8s-ingress
+  labels:
+    app: api-backend
+    tier: backend
+    lab: k8s-03
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api-backend
+  template:
+    metadata:
+      labels:
+        app: api-backend
+        tier: backend
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.26-alpine
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: api-backend-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-backend-config
+  namespace: k8s-ingress
+data:
+  default.conf: |
+    server {
+        listen 80;
+        server_name _;
+
+        location / {
+            return 200 '{"service": "api-backend", "version": "v1", "endpoints": ["/users", "/products", "/orders"]}\n';
+            add_header Content-Type application/json;
+        }
+
+        location /healthz {
+            access_log off;
+            return 200 "ok\n";
+        }
+    }

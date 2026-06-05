@@ -1,0 +1,65 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: myapp-hpa
+  labels:
+    app: myapp
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: myapp
+  minReplicas: 2
+  maxReplicas: 50
+  metrics:
+    # Metric 1: CPU utilization (percentage of request)
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+    # Metric 2: Memory utilization (percentage of request)
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+    # Metric 3: Custom metric from Prometheus via Prometheus Adapter
+    # Scales based on average HTTP requests per second per pod
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: "100"
+
+  # Scaling behavior policies
+  behavior:
+    # Scale up quickly to handle traffic spikes
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        # Allow doubling pods every 60 seconds
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+        # Or add up to 10 pods every 60 seconds
+        - type: Pods
+          value: 10
+          periodSeconds: 60
+      selectPolicy: Max
+
+    # Scale down slowly to avoid flapping
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        # Remove at most 25% of pods every 60 seconds
+        - type: Percent
+          value: 25
+          periodSeconds: 60
+      selectPolicy: Min

@@ -1,0 +1,22 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: istio-system
+spec:
+  mtls:
+    mode: STRICT
+---
+# Namespace-level override example (if needed for gradual rollout)
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: default
+spec:
+  mtls:
+    mode: STRICT
+  # Port-level override for metrics endpoint
+  portLevelMtls:
+    9090:
+      mode: PERMISSIVE

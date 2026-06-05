@@ -1,0 +1,52 @@
+apiVersion: platform.example.com/v1alpha1
+kind: DatabaseClaim
+metadata:
+  name: team-alpha-db
+  namespace: team-alpha
+  labels:
+    app.kubernetes.io/managed-by: backstage
+    backstage.io/template: golden-path-database
+    platform.example.com/team: alpha
+spec:
+  parameters:
+    engine: postgres
+    engineVersion: "15.4"
+    size: small
+    storageGB: 50
+    team: alpha
+    environment: dev
+    highAvailability: false
+    backupRetentionDays: 7
+  compositionSelector:
+    matchLabels:
+      provider: aws
+      service: rds
+  writeConnectionSecretToRef:
+    name: team-alpha-db-conn
+---
+# Example: Production database claim with HA enabled
+apiVersion: platform.example.com/v1alpha1
+kind: DatabaseClaim
+metadata:
+  name: team-beta-prod-db
+  namespace: team-beta
+  labels:
+    app.kubernetes.io/managed-by: backstage
+    backstage.io/template: golden-path-database
+    platform.example.com/team: beta
+spec:
+  parameters:
+    engine: postgres
+    engineVersion: "15.4"
+    size: large
+    storageGB: 500
+    team: beta
+    environment: production
+    highAvailability: true
+    backupRetentionDays: 30
+  compositionSelector:
+    matchLabels:
+      provider: aws
+      service: rds
+  writeConnectionSecretToRef:
+    name: team-beta-prod-db-conn

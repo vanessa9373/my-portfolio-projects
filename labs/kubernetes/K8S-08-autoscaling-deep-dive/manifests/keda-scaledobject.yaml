@@ -1,0 +1,110 @@
+# Worker Deployment that KEDA will scale
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  labels:
+    app: worker
+    component: queue-processor
+spec:
+  # KEDA manages replicas -- this is the initial count
+  replicas: 0
+  selector:
+    matchLabels:
+      app: worker
+      component: queue-processor
+  template:
+    metadata:
+      labels:
+        app: worker
+        component: queue-processor
+    spec:
+      containers:
+        - name: worker
+          image: myapp/worker:1.0.0
+          env:
+            - name: SQS_QUEUE_URL
+              value: "https://sqs.us-east-1.amazonaws.com/123456789012/my-queue"
+            - name: AWS_REGION
+              value: "us-east-1"
+            - name: BATCH_SIZE
+              value: "10"
+            - name: VISIBILITY_TIMEOUT
+              value: "300"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+      serviceAccountName: worker-sa
+      terminationGracePeriodSeconds: 60
+---
+# KEDA ScaledObject -- watches SQS queue and scales worker Deployment
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: worker-scaler
+  labels:
+    app: worker
+spec:
+  scaleTargetRef:
+    name: worker
+  # Scale-to-zero when queue is empty
+  minReplicaCount: 0
+  maxReplicaCount: 50
+
+  # Polling interval: how often KEDA checks the queue (seconds)
+  pollingInterval: 15
+
+  # Cooldown period: wait before scaling back to zero (seconds)
+  cooldownPeriod: 300
+
+  # Scaling triggers
+  triggers:
+    - type: aws-sqs-queue
+      authenticationRef:
+        name: aws-credentials
+      metadata:
+        queueURL: "https://sqs.us-east-1.amazonaws.com/123456789012/my-queue"
+        queueLength: "100"    # Each pod processes ~100 messages
+        awsRegion: "us-east-1"
+        # Formula: replicas = ceil(ApproximateNumberOfMessages / queueLength)
+        # 5000 messages / 100 = 50 replicas
+
+  # Advanced scaling configuration
+  advanced:
+    restoreToOriginalReplicaCount: true
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: 10
+          policies:
+            - type: Percent
+              value: 200
+              periodSeconds: 30
+        scaleDown:
+          stabilizationWindowSeconds: 120
+          policies:
+            - type: Percent
+              value: 50
+              periodSeconds: 60
+---
+# KEDA authentication for AWS SQS access
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: aws-credentials
+spec:
+  # Use the worker service account's IAM role (IRSA)
+  podIdentity:
+    provider: aws-eks
+---
+# Service account with IAM role for SQS access
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: worker-sa
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/worker-sqs-role"

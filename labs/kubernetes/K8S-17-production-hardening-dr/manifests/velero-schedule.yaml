@@ -1,0 +1,109 @@
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: daily-full-backup
+  namespace: velero
+  labels:
+    app: velero
+    backup-type: full
+    schedule: daily
+spec:
+  schedule: "0 2 * * *"
+  useOwnerReferencesInBackup: false
+  template:
+    ttl: 720h0m0s
+    includedNamespaces:
+      - production
+      - staging
+      - monitoring
+      - logging
+    excludedResources:
+      - events
+      - events.events.k8s.io
+    storageLocation: default
+    volumeSnapshotLocations:
+      - default
+    snapshotVolumes: true
+    defaultVolumesToFsBackup: true
+    metadata:
+      labels:
+        backup-type: full
+        schedule: daily
+    hooks:
+      resources:
+        - name: pre-backup-db-freeze
+          includedNamespaces:
+            - production
+          labelSelector:
+            matchLabels:
+              backup-hook: database
+          pre:
+            - exec:
+                container: app
+                command:
+                  - /bin/sh
+                  - -c
+                  - "pg_dump -U $PGUSER $PGDATABASE > /backup/pre-velero-dump.sql"
+                timeout: 120s
+                onError: Continue
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: hourly-production-backup
+  namespace: velero
+  labels:
+    app: velero
+    backup-type: incremental
+    schedule: hourly
+spec:
+  schedule: "0 * * * *"
+  useOwnerReferencesInBackup: false
+  template:
+    ttl: 168h0m0s
+    includedNamespaces:
+      - production
+    excludedResources:
+      - events
+      - events.events.k8s.io
+    storageLocation: default
+    volumeSnapshotLocations:
+      - default
+    snapshotVolumes: true
+    defaultVolumesToFsBackup: true
+    orderedResources:
+      pods: app/v1
+      persistentvolumeclaims: app/v1
+    metadata:
+      labels:
+        backup-type: incremental
+        schedule: hourly
+---
+apiVersion: velero.io/v1
+kind: BackupStorageLocation
+metadata:
+  name: default
+  namespace: velero
+spec:
+  provider: aws
+  objectStorage:
+    bucket: k8s-prod-velero-backups
+    prefix: cluster-backups
+  config:
+    region: us-east-1
+    s3ForcePathStyle: "false"
+  credential:
+    name: velero-aws-credentials
+    key: cloud
+  accessMode: ReadWrite
+  default: true
+---
+apiVersion: velero.io/v1
+kind: VolumeSnapshotLocation
+metadata:
+  name: default
+  namespace: velero
+spec:
+  provider: aws
+  config:
+    region: us-east-1

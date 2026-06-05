@@ -1,0 +1,119 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-signatures
+  annotations:
+    policies.kyverno.io/title: Verify Image Signatures
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Verifies that all container images in production namespaces are signed
+      with the organization's cosign key. Unsigned or tampered images are
+      rejected at admission time.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  webhookTimeoutSeconds: 30
+  failurePolicy: Fail
+  rules:
+    # Rule 1: Verify signatures for production images
+    - name: verify-production-images
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - production
+      verifyImages:
+        - imageReferences:
+            - "registry.example.com/*"
+          attestors:
+            - entries:
+                - keys:
+                    publicKeys: |-
+                      -----BEGIN PUBLIC KEY-----
+                      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEexamplePublicKeyHere
+                      ReplaceWithYourActualCosignPublicKey==
+                      -----END PUBLIC KEY-----
+          mutateDigest: true
+          verifyDigest: true
+          required: true
+
+    # Rule 2: Verify signatures for staging images (audit only)
+    - name: verify-staging-images
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - staging
+      verifyImages:
+        - imageReferences:
+            - "registry.example.com/*"
+          attestors:
+            - entries:
+                - keys:
+                    publicKeys: |-
+                      -----BEGIN PUBLIC KEY-----
+                      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEexamplePublicKeyHere
+                      ReplaceWithYourActualCosignPublicKey==
+                      -----END PUBLIC KEY-----
+          mutateDigest: true
+          verifyDigest: true
+          required: false
+
+    # Rule 3: Block images from untrusted registries in production
+    - name: restrict-image-registries
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - production
+      validate:
+        message: >-
+          Images in production must come from approved registries:
+          registry.example.com, gcr.io/org-name, or
+          123456789.dkr.ecr.us-east-1.amazonaws.com
+        pattern:
+          spec:
+            containers:
+              - image: "registry.example.com/* | gcr.io/org-name/* | 123456789.dkr.ecr.us-east-1.amazonaws.com/*"
+            initContainers:
+              - image: "registry.example.com/* | gcr.io/org-name/* | 123456789.dkr.ecr.us-east-1.amazonaws.com/*"
+---
+# Kyverno installation prerequisites
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kyverno
+  labels:
+    app: kyverno
+    pod-security.kubernetes.io/enforce: baseline
+---
+# Policy exception for system namespaces
+apiVersion: kyverno.io/v2beta1
+kind: PolicyException
+metadata:
+  name: system-namespace-exception
+  namespace: kyverno
+spec:
+  exceptions:
+    - policyName: verify-image-signatures
+      ruleNames:
+        - verify-production-images
+        - restrict-image-registries
+  match:
+    any:
+      - resources:
+          kinds:
+            - Pod
+          namespaces:
+            - kube-system
+            - kyverno
+            - velero
+            - monitoring

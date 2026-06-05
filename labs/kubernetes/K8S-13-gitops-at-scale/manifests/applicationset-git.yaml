@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: monorepo-services
+  namespace: argocd
+spec:
+  generators:
+    # Matrix generator: combines git directories with environment list
+    - matrix:
+        generators:
+          # First: discover all services in the monorepo
+          - git:
+              repoURL: https://github.com/your-org/gitops-repo.git
+              revision: main
+              directories:
+                - path: "services/*"
+                - path: "services/deprecated-*"
+                  exclude: true
+          # Second: for each service, create apps for all environments
+          - list:
+              elements:
+                - env: dev
+                  cluster: https://kubernetes.default.svc
+                - env: staging
+                  cluster: https://kubernetes.default.svc
+                - env: prod
+                  cluster: https://prod-cluster.example.com
+  template:
+    metadata:
+      name: "{{path.basename}}-{{env}}"
+      namespace: argocd
+      labels:
+        app: "{{path.basename}}"
+        environment: "{{env}}"
+        generator: monorepo
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/your-org/gitops-repo.git
+        targetRevision: main
+        path: "{{path}}/overlays/{{env}}"
+      destination:
+        server: "{{cluster}}"
+        namespace: "{{path.basename}}-{{env}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - PruneLast=true
+          - ServerSideApply=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 2m

@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: storage-demo
+  namespace: k8s-storage
+  labels:
+    app: storage-demo
+    lab: k8s-02
+spec:
+  # Init container seeds the volume with initial data
+  initContainers:
+    - name: init-data
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          echo "Volume initialized at $(date)" > /data/init-marker.txt
+          echo "This file proves the init container ran" >> /data/init-marker.txt
+      volumeMounts:
+        - name: persistent-data
+          mountPath: /data
+  containers:
+    - name: app
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          echo "=== Storage Demo Pod Started ==="
+          echo "Writing timestamp to persistent volume..."
+          echo "Pod started at $(date)" >> /data/timestamp.txt
+          echo "Hostname: $(hostname)" >> /data/timestamp.txt
+          echo ""
+          echo "=== Contents of /data ==="
+          ls -la /data/
+          echo ""
+          echo "=== Keeping pod running ==="
+          while true; do
+            echo "$(date) - Pod is running, data is at /data" >> /data/heartbeat.log
+            sleep 60
+          done
+      volumeMounts:
+        - name: persistent-data
+          mountPath: /data
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+  volumes:
+    - name: persistent-data
+      persistentVolumeClaim:
+        claimName: static-pvc     # References the static PVC
+  restartPolicy: Always

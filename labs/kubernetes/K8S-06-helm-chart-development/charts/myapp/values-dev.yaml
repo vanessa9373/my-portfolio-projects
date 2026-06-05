@@ -1,0 +1,52 @@
+# Development environment overrides
+# Usage: helm upgrade --install myapp ./charts/myapp -f charts/myapp/values-dev.yaml
+
+replicaCount: 1
+
+image:
+  tag: "latest"
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 128Mi
+
+env:
+  LOG_LEVEL: "debug"
+  DB_PORT: "5432"
+  DB_NAME: "appdb_dev"
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  hosts:
+    - host: myapp.dev.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+autoscaling:
+  enabled: false
+
+postgresql:
+  enabled: true
+  auth:
+    username: appuser
+    password: "devpassword123"
+    database: appdb_dev
+  primary:
+    persistence:
+      size: 5Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi

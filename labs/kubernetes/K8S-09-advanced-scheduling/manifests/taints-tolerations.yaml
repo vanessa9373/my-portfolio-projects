@@ -1,0 +1,89 @@
+# ML Training pod that tolerates the GPU taint
+# First taint the GPU node: kubectl taint nodes <gpu-node> gpu=nvidia:NoSchedule
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ml-training
+  labels:
+    app: ml-training
+    workload-type: gpu
+spec:
+  # Toleration allows this pod to be scheduled on tainted GPU nodes
+  tolerations:
+    - key: "gpu"
+      operator: "Equal"
+      value: "nvidia"
+      effect: "NoSchedule"
+  # Node affinity ensures the pod only goes to GPU nodes
+  # (toleration alone just PERMITS scheduling, it doesn't REQUIRE it)
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: gpu
+                operator: In
+                values:
+                  - "nvidia"
+  containers:
+    - name: ml-trainer
+      image: nvidia/cuda:12.3.1-runtime-ubuntu22.04
+      command: ["sleep", "3600"]
+      resources:
+        requests:
+          cpu: "2"
+          memory: 4Gi
+          nvidia.com/gpu: "1"
+        limits:
+          cpu: "4"
+          memory: 8Gi
+          nvidia.com/gpu: "1"
+---
+# Regular pod WITHOUT toleration -- demonstrates taint repulsion
+apiVersion: v1
+kind: Pod
+metadata:
+  name: regular-pod-no-toleration
+  labels:
+    app: regular-app
+    workload-type: cpu
+spec:
+  # No tolerations -- this pod CANNOT schedule on tainted nodes
+  # If nodeSelector points to a tainted node, it will be Pending
+  containers:
+    - name: app
+      image: nginx:1.25-alpine
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+---
+# Pod that tolerates ALL taints (e.g., monitoring agent)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: monitoring-agent
+  labels:
+    app: monitoring
+    workload-type: infrastructure
+spec:
+  # Tolerate ALL taints -- this pod can go anywhere
+  tolerations:
+    - operator: "Exists"
+  # This pattern is used by DaemonSets for monitoring/logging
+  # that need to run on every node regardless of taints
+  containers:
+    - name: monitor
+      image: prom/node-exporter:v1.7.0
+      ports:
+        - containerPort: 9100
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 128Mi

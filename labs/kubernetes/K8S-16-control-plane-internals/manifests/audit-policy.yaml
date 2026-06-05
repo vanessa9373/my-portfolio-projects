@@ -1,0 +1,153 @@
+apiVersion: audit.k8s.io/v1
+kind: Policy
+metadata:
+  name: k8s-audit-policy
+rules:
+  # Do not log requests to the following API endpoints
+  - level: None
+    nonResourceURLs:
+      - "/healthz*"
+      - "/readyz*"
+      - "/livez*"
+      - "/metrics"
+      - "/openapi/*"
+
+  # Do not log watch requests (too noisy)
+  - level: None
+    verbs:
+      - watch
+
+  # Do not log kube-proxy reading endpoints
+  - level: None
+    users:
+      - "system:kube-proxy"
+    verbs:
+      - get
+      - list
+
+  # Do not log system:nodes reading their own status
+  - level: None
+    userGroups:
+      - "system:nodes"
+    resources:
+      - group: ""
+        resources:
+          - nodes
+          - nodes/status
+    verbs:
+      - get
+
+  # Log secrets at Metadata level only (never log secret values)
+  - level: Metadata
+    resources:
+      - group: ""
+        resources:
+          - secrets
+          - configmaps
+          - serviceaccounts/token
+    omitStages:
+      - RequestReceived
+
+  # Log authentication and authorization at RequestResponse level
+  - level: RequestResponse
+    resources:
+      - group: "authentication.k8s.io"
+        resources:
+          - tokenreviews
+      - group: "authorization.k8s.io"
+        resources:
+          - subjectaccessreviews
+          - selfsubjectaccessreviews
+    omitStages:
+      - RequestReceived
+
+  # Log RBAC changes at RequestResponse level
+  - level: RequestResponse
+    resources:
+      - group: "rbac.authorization.k8s.io"
+        resources:
+          - roles
+          - rolebindings
+          - clusterroles
+          - clusterrolebindings
+    verbs:
+      - create
+      - update
+      - patch
+      - delete
+    omitStages:
+      - RequestReceived
+
+  # Log namespace lifecycle
+  - level: RequestResponse
+    resources:
+      - group: ""
+        resources:
+          - namespaces
+    verbs:
+      - create
+      - delete
+    omitStages:
+      - RequestReceived
+
+  # Log all write operations on core resources at Request level
+  - level: Request
+    resources:
+      - group: ""
+        resources:
+          - pods
+          - services
+          - deployments
+          - statefulsets
+          - daemonsets
+          - replicasets
+          - persistentvolumeclaims
+          - persistentvolumes
+      - group: "apps"
+        resources:
+          - deployments
+          - statefulsets
+          - daemonsets
+          - replicasets
+      - group: "batch"
+        resources:
+          - jobs
+          - cronjobs
+      - group: "networking.k8s.io"
+        resources:
+          - networkpolicies
+          - ingresses
+    verbs:
+      - create
+      - update
+      - patch
+      - delete
+    omitStages:
+      - RequestReceived
+
+  # Log all other write operations at Metadata level
+  - level: Metadata
+    verbs:
+      - create
+      - update
+      - patch
+      - delete
+    omitStages:
+      - RequestReceived
+
+  # Log read operations on sensitive resources
+  - level: Metadata
+    resources:
+      - group: ""
+        resources:
+          - secrets
+    verbs:
+      - get
+      - list
+    omitStages:
+      - RequestReceived
+
+  # Default: log everything else at Metadata level
+  - level: Metadata
+    omitStages:
+      - RequestReceived

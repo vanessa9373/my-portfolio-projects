@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zone-spread
+  labels:
+    app: zone-spread
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: zone-spread
+  template:
+    metadata:
+      labels:
+        app: zone-spread
+    spec:
+      # Topology spread constraints ensure even distribution
+      topologySpreadConstraints:
+        # Constraint 1: Spread evenly across availability zones
+        - maxSkew: 1
+          # maxSkew=1 means the difference between the zone with the most
+          # pods and the zone with the fewest can be at most 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          # DoNotSchedule = hard constraint (pod stays Pending)
+          # ScheduleAnyway = soft constraint (scheduler tries but proceeds)
+          labelSelector:
+            matchLabels:
+              app: zone-spread
+          # Only count Ready pods toward the spread calculation
+          matchLabelKeys:
+            - pod-template-hash
+
+        # Constraint 2: Also spread across nodes within each zone
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          # Soft constraint: prefer spreading across nodes but don't block
+          labelSelector:
+            matchLabels:
+              app: zone-spread
+          matchLabelKeys:
+            - pod-template-hash
+
+      containers:
+        - name: app
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          # Inject zone information as environment variable for debugging
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zone-spread
+  labels:
+    app: zone-spread
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+  selector:
+    app: zone-spread

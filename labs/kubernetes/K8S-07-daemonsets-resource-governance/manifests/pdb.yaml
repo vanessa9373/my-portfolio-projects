@@ -1,0 +1,55 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: myapp-pdb
+  namespace: team-a
+  labels:
+    app: myapp
+spec:
+  # At least 2 replicas must remain available during voluntary disruptions
+  # (node drains, cluster upgrades, voluntary evictions)
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: myapp
+  # UnhealthyPodEvictionPolicy controls how unhealthy pods are handled
+  # AlwaysAllow: unhealthy pods can be evicted regardless of PDB
+  unhealthyPodEvictionPolicy: AlwaysAllow
+---
+# Example Deployment that the PDB protects
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+  namespace: team-a
+  labels:
+    app: myapp
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      priorityClassName: standard-workload
+      containers:
+        - name: myapp
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5

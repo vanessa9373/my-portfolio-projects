@@ -1,0 +1,36 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: backend-fault-injection
+  namespace: default
+spec:
+  hosts:
+    - backend
+  http:
+    - fault:
+        delay:
+          percentage:
+            value: 50.0
+          fixedDelay: 5s
+        abort:
+          percentage:
+            value: 10.0
+          httpStatus: 503
+      route:
+        - destination:
+            host: backend
+            subset: v1
+            port:
+              number: 8080
+          weight: 90
+        - destination:
+            host: backend
+            subset: v2
+            port:
+              number: 8080
+          weight: 10
+      retries:
+        attempts: 3
+        perTryTimeout: 8s
+        retryOn: 5xx,gateway-error,connect-failure
+      timeout: 30s

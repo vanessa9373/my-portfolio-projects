@@ -1,0 +1,30 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-storage
+  labels:
+    lab: k8s-02
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: k8s.io/minikube-hostpath   # Minikube's built-in provisioner
+                                         # Production: kubernetes.io/aws-ebs, pd.csi.storage.gke.io, etc.
+parameters:
+  type: pd-ssd                           # Provisioner-specific parameter
+reclaimPolicy: Retain                    # Keep PV after PVC deletion (safe for data)
+allowVolumeExpansion: true               # Allow PVC size increases
+volumeBindingMode: Immediate             # Bind PV as soon as PVC is created
+                                         # WaitForFirstConsumer: Bind when pod is scheduled (topology-aware)
+---
+# Additional StorageClass for economy tier
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: economy-storage
+  labels:
+    lab: k8s-02
+provisioner: k8s.io/minikube-hostpath
+parameters:
+  type: pd-standard
+reclaimPolicy: Delete                    # Auto-delete PV when PVC is removed
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer  # Wait for pod scheduling to pick zone

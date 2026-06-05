@@ -1,0 +1,233 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: database-aws-rds
+  labels:
+    provider: aws
+    service: rds
+    platform.example.com/composition: database
+spec:
+  compositeTypeRef:
+    apiVersion: platform.example.com/v1alpha1
+    kind: Database
+  writeConnectionSecretsToNamespace: crossplane-system
+  patchSets:
+    - name: common-tags
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.team
+          toFieldPath: spec.forProvider.tags["team"]
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.environment
+          toFieldPath: spec.forProvider.tags["environment"]
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.tags["managed-by"]
+          transforms:
+            - type: string
+              string:
+                fmt: "crossplane-%s"
+  resources:
+    # --- DB Subnet Group ---
+    - name: db-subnet-group
+      base:
+        apiVersion: rds.aws.upbound.io/v1beta1
+        kind: SubnetGroup
+        spec:
+          forProvider:
+            region: us-east-1
+            description: "Managed by Crossplane - Platform Database"
+            subnetIds:
+              - subnet-0abc123def456789a
+              - subnet-0abc123def456789b
+              - subnet-0abc123def456789c
+            tags:
+              managed-by: crossplane
+              platform: "true"
+          providerConfigRef:
+            name: default
+      patches:
+        - type: PatchSet
+          patchSetName: common-tags
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-subnet-group"
+
+    # --- Security Group ---
+    - name: security-group
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: SecurityGroup
+        spec:
+          forProvider:
+            region: us-east-1
+            vpcId: vpc-0abc123def456789a
+            name: ""
+            description: "Security group for platform-managed database"
+            tags:
+              managed-by: crossplane
+              platform: "true"
+          providerConfigRef:
+            name: default
+      patches:
+        - type: PatchSet
+          patchSetName: common-tags
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-db-sg"
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-sg"
+
+    # --- Security Group Rule (Inbound PostgreSQL) ---
+    - name: sg-rule-inbound
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: SecurityGroupRule
+        spec:
+          forProvider:
+            region: us-east-1
+            type: ingress
+            fromPort: 5432
+            toPort: 5432
+            protocol: tcp
+            cidrBlocks:
+              - "10.0.0.0/8"
+            description: "Allow database access from VPC"
+          providerConfigRef:
+            name: default
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-sg-rule"
+
+    # --- RDS Instance ---
+    - name: rds-instance
+      base:
+        apiVersion: rds.aws.upbound.io/v1beta1
+        kind: Instance
+        spec:
+          forProvider:
+            region: us-east-1
+            dbName: appdb
+            engine: postgres
+            engineVersion: "15.4"
+            instanceClass: db.t3.micro
+            allocatedStorage: 50
+            maxAllocatedStorage: 100
+            storageType: gp3
+            storageEncrypted: true
+            autoMinorVersionUpgrade: true
+            backupRetentionPeriod: 7
+            backupWindow: "03:00-04:00"
+            maintenanceWindow: "sun:04:00-sun:05:00"
+            deletionProtection: false
+            skipFinalSnapshot: false
+            finalSnapshotIdentifier: ""
+            publiclyAccessible: false
+            copyTagsToSnapshot: true
+            performanceInsightsEnabled: true
+            performanceInsightsRetentionPeriod: 7
+            monitoringInterval: 60
+            enabledCloudwatchLogsExports:
+              - postgresql
+              - upgrade
+            passwordSecretRef:
+              key: password
+              name: ""
+              namespace: crossplane-system
+            tags:
+              managed-by: crossplane
+              platform: "true"
+          providerConfigRef:
+            name: default
+          writeConnectionSecretToRef:
+            namespace: crossplane-system
+            name: ""
+      patches:
+        - type: PatchSet
+          patchSetName: common-tags
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: metadata.name
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.finalSnapshotIdentifier
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-final-snapshot"
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: spec.writeConnectionSecretToRef.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-conn"
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.passwordSecretRef.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-password"
+        # Map size to instance class
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.size
+          toFieldPath: spec.forProvider.instanceClass
+          transforms:
+            - type: map
+              map:
+                small: db.t3.micro
+                medium: db.r6g.large
+                large: db.r6g.xlarge
+        # Map storage
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.storageGB
+          toFieldPath: spec.forProvider.allocatedStorage
+        # Map engine version
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.engineVersion
+          toFieldPath: spec.forProvider.engineVersion
+        # Map HA
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.highAvailability
+          toFieldPath: spec.forProvider.multiAz
+        # Map backup retention
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.backupRetentionDays
+          toFieldPath: spec.forProvider.backupRetentionPeriod
+        # Status patches
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.endpoint
+          toFieldPath: status.endpoint
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.port
+          toFieldPath: status.port
+      connectionDetails:
+        - name: endpoint
+          fromFieldPath: status.atProvider.endpoint
+        - name: port
+          fromFieldPath: status.atProvider.port
+          type: FromFieldPath
+        - name: username
+          fromFieldPath: spec.forProvider.username
+          type: FromFieldPath
+        - name: password
+          fromConnectionSecretKey: attribute.password

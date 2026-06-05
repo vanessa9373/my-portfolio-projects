@@ -1,0 +1,76 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xdatabases.platform.ecommerce.example.com
+spec:
+  group: platform.ecommerce.example.com
+  names:
+    kind: XDatabase
+    plural: xdatabases
+  claimNames:
+    kind: Database
+    plural: databases
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                parameters:
+                  type: object
+                  properties:
+                    size:
+                      type: string
+                      enum: [small, medium, large]
+                      default: small
+                    engine:
+                      type: string
+                      enum: [postgresql]
+                      default: postgresql
+                  required:
+                    - size
+              required:
+                - parameters
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: database-postgresql
+  labels:
+    provider: aws
+    engine: postgresql
+spec:
+  compositeTypeRef:
+    apiVersion: platform.ecommerce.example.com/v1alpha1
+    kind: XDatabase
+  resources:
+    - name: rds-instance
+      base:
+        apiVersion: rds.aws.upbound.io/v1beta1
+        kind: Instance
+        spec:
+          forProvider:
+            region: us-east-1
+            engine: aurora-postgresql
+            engineVersion: "15.4"
+            storageEncrypted: true
+            autoMinorVersionUpgrade: true
+            backupRetentionPeriod: 7
+            deletionProtection: true
+          providerConfigRef:
+            name: aws-provider
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.size
+          toFieldPath: spec.forProvider.instanceClass
+          transforms:
+            - type: map
+              map:
+                small: db.t4g.medium
+                medium: db.r6g.large
+                large: db.r6g.xlarge

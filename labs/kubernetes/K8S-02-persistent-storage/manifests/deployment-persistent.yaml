@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: persistent-app
+  namespace: k8s-storage
+  labels:
+    app: persistent-app
+    lab: k8s-02
+spec:
+  replicas: 1                   # Single replica for RWO volume
+  selector:
+    matchLabels:
+      app: persistent-app
+  strategy:
+    type: Recreate              # Must use Recreate (not RollingUpdate) with RWO PVC
+                                # RWO means only one node can mount the volume
+                                # RollingUpdate would try to mount on new pod before old dies
+  template:
+    metadata:
+      labels:
+        app: persistent-app
+        lab: k8s-02
+    spec:
+      containers:
+        - name: app
+          image: nginx:1.26-alpine
+          ports:
+            - containerPort: 80
+              name: http
+          volumeMounts:
+            - name: app-data
+              mountPath: /app/data         # Application data directory
+            - name: app-logs
+              mountPath: /var/log/nginx    # Persistent logs
+            - name: tmp-cache
+              mountPath: /tmp/cache        # Ephemeral scratch space
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+      volumes:
+        # Dynamic PVC -- volume provisioned automatically by StorageClass
+        - name: app-data
+          persistentVolumeClaim:
+            claimName: dynamic-pvc
+        # hostPath for logs (alternative to PVC for non-critical data)
+        - name: app-logs
+          hostPath:
+            path: /var/log/k8s-apps/persistent-app
+            type: DirectoryOrCreate
+        # emptyDir for scratch/cache (ephemeral, deleted with pod)
+        - name: tmp-cache
+          emptyDir:
+            sizeLimit: 500Mi     # Limit ephemeral storage usage

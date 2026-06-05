@@ -1,0 +1,180 @@
+# VPA objects in recommendation mode for key workloads
+# These analyze actual resource usage and suggest optimal requests/limits
+
+# VPA for production API service
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: api-service-vpa
+  namespace: production
+  labels:
+    app: api-service
+    optimization: right-sizing
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-service
+  # Recommendation mode only — does not auto-apply changes
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: api
+        minAllowed:
+          cpu: 50m
+          memory: 64Mi
+        maxAllowed:
+          cpu: "4"
+          memory: 8Gi
+        controlledResources:
+          - cpu
+          - memory
+        controlledValues: RequestsAndLimits
+---
+# VPA for web frontend
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: web-frontend-vpa
+  namespace: production
+  labels:
+    app: web-frontend
+    optimization: right-sizing
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: web-frontend
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: frontend
+        minAllowed:
+          cpu: 25m
+          memory: 32Mi
+        maxAllowed:
+          cpu: "2"
+          memory: 4Gi
+        controlledResources:
+          - cpu
+          - memory
+---
+# VPA for worker service
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: worker-service-vpa
+  namespace: production
+  labels:
+    app: worker-service
+    optimization: right-sizing
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker-service
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: worker
+        minAllowed:
+          cpu: 100m
+          memory: 128Mi
+        maxAllowed:
+          cpu: "8"
+          memory: 16Gi
+        controlledResources:
+          - cpu
+          - memory
+---
+# VPA for batch processor
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: batch-processor-vpa
+  namespace: batch-jobs
+  labels:
+    app: batch-processor
+    optimization: right-sizing
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: batch-processor
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: processor
+        minAllowed:
+          cpu: 100m
+          memory: 256Mi
+        maxAllowed:
+          cpu: "4"
+          memory: 8Gi
+        controlledResources:
+          - cpu
+          - memory
+---
+# VPA for monitoring stack
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: prometheus-vpa
+  namespace: monitoring
+  labels:
+    app: prometheus
+    optimization: right-sizing
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: prometheus-server
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: prometheus-server
+        minAllowed:
+          cpu: 200m
+          memory: 512Mi
+        maxAllowed:
+          cpu: "4"
+          memory: 16Gi
+        controlledResources:
+          - cpu
+          - memory
+---
+# VPA for staging API (can use Auto mode since staging is non-critical)
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: staging-api-vpa
+  namespace: staging
+  labels:
+    app: api-service
+    optimization: right-sizing
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-service
+  # Auto mode for staging — applies recommendations automatically
+  updatePolicy:
+    updateMode: "Auto"
+    minReplicas: 2
+  resourcePolicy:
+    containerPolicies:
+      - containerName: api
+        minAllowed:
+          cpu: 50m
+          memory: 64Mi
+        maxAllowed:
+          cpu: "2"
+          memory: 4Gi
+        controlledResources:
+          - cpu
+          - memory

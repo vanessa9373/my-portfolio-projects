@@ -1,0 +1,526 @@
+# =============================================================================
+# Continuous Deployment Pipeline
+# E-Commerce Platform — GitHub Actions
+# =============================================================================
+# This workflow deploys the e-commerce platform using a GitOps approach:
+#   1. Staging: Automatically deploys on push to main (after CI passes)
+#   2. Production: Requires manual approval via GitHub environment protection
+#
+# The pipeline updates image tags in the GitOps repository and waits for
+# ArgoCD to reconcile the desired state to the target cluster.
+# =============================================================================
+
+name: CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE/**"
+
+  # Allow manual triggering for hotfix deployments
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Container image tag to deploy (defaults to commit SHA)"
+        required: false
+        type: string
+      skip_staging:
+        description: "Skip staging deployment and deploy directly to production"
+        required: false
+        type: boolean
+        default: false
+      services:
+        description: "Comma-separated list of services to deploy (empty = all)"
+        required: false
+        type: string
+
+# Prevent concurrent deployments to the same environment
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+# Required for OIDC token authentication with AWS
+permissions:
+  id-token: write
+  contents: read
+  deployments: write
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+  GITOPS_REPO: ecommerce-platform/gitops-config
+  GITOPS_BRANCH: main
+  ARGOCD_SERVER: argocd.ecommerce.internal
+  IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+
+jobs:
+  # ===========================================================================
+  # Pre-flight: Validate deployment prerequisites
+  # ===========================================================================
+  preflight:
+    name: Pre-flight Checks
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.resolve-tag.outputs.tag }}
+      services: ${{ steps.resolve-services.outputs.services }}
+      should_deploy_staging: ${{ steps.check-skip.outputs.deploy_staging }}
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+
+      - name: Resolve image tag
+        id: resolve-tag
+        run: |
+          TAG="${{ github.event.inputs.image_tag || github.sha }}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Resolved image tag: ${TAG}"
+
+      - name: Resolve services to deploy
+        id: resolve-services
+        run: |
+          if [ -n "${{ github.event.inputs.services }}" ]; then
+            SERVICES="${{ github.event.inputs.services }}"
+          else
+            SERVICES="user-service,order-service,product-service,payment-service,notification-service"
+          fi
+          echo "services=${SERVICES}" >> "$GITHUB_OUTPUT"
+          echo "Services to deploy: ${SERVICES}"
+
+      - name: Check staging skip flag
+        id: check-skip
+        run: |
+          if [ "${{ github.event.inputs.skip_staging }}" = "true" ]; then
+            echo "deploy_staging=false" >> "$GITHUB_OUTPUT"
+            echo "Staging deployment will be SKIPPED"
+          else
+            echo "deploy_staging=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-cd
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify container images exist in ECR
+        run: |
+          IFS=',' read -ra SERVICES <<< "${{ steps.resolve-services.outputs.services }}"
+          TAG="${{ steps.resolve-tag.outputs.tag }}"
+
+          for SERVICE in "${SERVICES[@]}"; do
+            SERVICE=$(echo "$SERVICE" | xargs)  # Trim whitespace
+            echo "Checking image for ${SERVICE}:${TAG}..."
+
+            aws ecr describe-images \
+              --repository-name "ecommerce/${SERVICE}" \
+              --image-ids imageTag="${TAG}" \
+              --region "${{ env.AWS_REGION }}" > /dev/null 2>&1
+
+            if [ $? -ne 0 ]; then
+              echo "ERROR: Image ecommerce/${SERVICE}:${TAG} not found in ECR"
+              exit 1
+            fi
+            echo "Image ecommerce/${SERVICE}:${TAG} verified."
+          done
+
+  # ===========================================================================
+  # Deploy to Staging (automatic)
+  # ===========================================================================
+  deploy-staging:
+    name: Deploy to Staging
+    needs: preflight
+    if: needs.preflight.outputs.should_deploy_staging == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging.ecommerce.com
+    steps:
+      - name: Checkout GitOps repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.GITOPS_REPO }}
+          token: ${{ secrets.GITOPS_PAT }}
+          ref: ${{ env.GITOPS_BRANCH }}
+          path: gitops
+
+      - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v2
+        with:
+          kustomize-version: "5.3.0"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-cd
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update image tags in staging overlay
+        working-directory: gitops
+        run: |
+          TAG="${{ needs.preflight.outputs.image_tag }}"
+          IFS=',' read -ra SERVICES <<< "${{ needs.preflight.outputs.services }}"
+
+          for SERVICE in "${SERVICES[@]}"; do
+            SERVICE=$(echo "$SERVICE" | xargs)
+            OVERLAY_PATH="environments/staging/${SERVICE}"
+
+            if [ ! -d "$OVERLAY_PATH" ]; then
+              echo "WARNING: Overlay path ${OVERLAY_PATH} not found, skipping"
+              continue
+            fi
+
+            echo "Updating ${SERVICE} to tag ${TAG} in staging..."
+
+            cd "$OVERLAY_PATH"
+            kustomize edit set image \
+              "${ECR_REGISTRY}/ecommerce/${SERVICE}:${TAG}"
+            cd -
+          done
+
+      - name: Commit and push to GitOps repository
+        working-directory: gitops
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit — images may already be at the target tag"
+            exit 0
+          fi
+
+          git commit -m "deploy(staging): update images to ${{ needs.preflight.outputs.image_tag }}
+
+          Services: ${{ needs.preflight.outputs.services }}
+          Source commit: ${{ github.sha }}
+          Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # Retry push in case of concurrent updates
+          for i in 1 2 3; do
+            git pull --rebase origin "${{ env.GITOPS_BRANCH }}" && \
+            git push origin "${{ env.GITOPS_BRANCH }}" && break
+            echo "Push attempt $i failed, retrying..."
+            sleep 5
+          done
+
+      - name: Install ArgoCD CLI
+        run: |
+          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x argocd
+          sudo mv argocd /usr/local/bin/
+
+      - name: Wait for ArgoCD sync — Staging
+        env:
+          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+        run: |
+          IFS=',' read -ra SERVICES <<< "${{ needs.preflight.outputs.services }}"
+
+          for SERVICE in "${SERVICES[@]}"; do
+            SERVICE=$(echo "$SERVICE" | xargs)
+            APP_NAME="staging-${SERVICE}"
+
+            echo "Triggering sync for ${APP_NAME}..."
+            argocd app sync "$APP_NAME" \
+              --server "${{ env.ARGOCD_SERVER }}" \
+              --grpc-web \
+              --force \
+              --prune \
+              --timeout 300
+
+            echo "Waiting for ${APP_NAME} to become healthy..."
+            argocd app wait "$APP_NAME" \
+              --server "${{ env.ARGOCD_SERVER }}" \
+              --grpc-web \
+              --timeout 300 \
+              --health
+          done
+
+      - name: Run staging smoke tests
+        run: |
+          echo "Running smoke tests against staging..."
+
+          # Health check endpoints
+          ENDPOINTS=(
+            "https://staging.ecommerce.com/api/v1/users/health"
+            "https://staging.ecommerce.com/api/v1/orders/health"
+            "https://staging.ecommerce.com/api/v1/products/health"
+            "https://staging.ecommerce.com/api/v1/payments/health"
+          )
+
+          FAILED=0
+          for ENDPOINT in "${ENDPOINTS[@]}"; do
+            HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" \
+              --max-time 10 --retry 3 --retry-delay 5 \
+              "$ENDPOINT" || echo "000")
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "PASS: $ENDPOINT (HTTP $HTTP_CODE)"
+            else
+              echo "FAIL: $ENDPOINT (HTTP $HTTP_CODE)"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "ERROR: $FAILED smoke test(s) failed"
+            exit 1
+          fi
+          echo "All staging smoke tests passed."
+
+      - name: Notify staging deployment success
+        if: success()
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "channel": "#deployments",
+              "text": "Staging deployment successful",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":white_check_mark: *Staging Deployment Successful*\n*Services:* ${{ needs.preflight.outputs.services }}\n*Tag:* `${{ needs.preflight.outputs.image_tag }}`\n*Commit:* <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # ===========================================================================
+  # Deploy to Production (manual approval required)
+  # ===========================================================================
+  deploy-production:
+    name: Deploy to Production
+    needs:
+      - preflight
+      - deploy-staging
+    # Run even if staging was skipped (when skip_staging is true)
+    if: always() && (needs.deploy-staging.result == 'success' || needs.preflight.outputs.should_deploy_staging == 'false')
+    runs-on: ubuntu-latest
+    environment:
+      # The "production" environment MUST have protection rules configured:
+      #   - Required reviewers (at least 2 from platform-engineering team)
+      #   - Wait timer: 5 minutes (cool-down period after approval)
+      #   - Deployment branch: main only
+      name: production
+      url: https://api.ecommerce.com
+    steps:
+      - name: Checkout GitOps repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.GITOPS_REPO }}
+          token: ${{ secrets.GITOPS_PAT }}
+          ref: ${{ env.GITOPS_BRANCH }}
+          path: gitops
+
+      - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v2
+        with:
+          kustomize-version: "5.3.0"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-cd-production
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update image tags in production overlay
+        working-directory: gitops
+        run: |
+          TAG="${{ needs.preflight.outputs.image_tag }}"
+          IFS=',' read -ra SERVICES <<< "${{ needs.preflight.outputs.services }}"
+
+          for SERVICE in "${SERVICES[@]}"; do
+            SERVICE=$(echo "$SERVICE" | xargs)
+            OVERLAY_PATH="environments/production/${SERVICE}"
+
+            if [ ! -d "$OVERLAY_PATH" ]; then
+              echo "WARNING: Overlay path ${OVERLAY_PATH} not found, skipping"
+              continue
+            fi
+
+            echo "Updating ${SERVICE} to tag ${TAG} in production..."
+
+            cd "$OVERLAY_PATH"
+            kustomize edit set image \
+              "${ECR_REGISTRY}/ecommerce/${SERVICE}:${TAG}"
+            cd -
+          done
+
+      - name: Commit and push to GitOps repository
+        working-directory: gitops
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit — images may already be at the target tag"
+            exit 0
+          fi
+
+          git commit -m "deploy(production): update images to ${{ needs.preflight.outputs.image_tag }}
+
+          Services: ${{ needs.preflight.outputs.services }}
+          Source commit: ${{ github.sha }}
+          Approved by: ${{ github.actor }}
+          Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          for i in 1 2 3; do
+            git pull --rebase origin "${{ env.GITOPS_BRANCH }}" && \
+            git push origin "${{ env.GITOPS_BRANCH }}" && break
+            echo "Push attempt $i failed, retrying..."
+            sleep 5
+          done
+
+      - name: Install ArgoCD CLI
+        run: |
+          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x argocd
+          sudo mv argocd /usr/local/bin/
+
+      - name: Wait for ArgoCD sync — Production
+        env:
+          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+        run: |
+          IFS=',' read -ra SERVICES <<< "${{ needs.preflight.outputs.services }}"
+
+          for SERVICE in "${SERVICES[@]}"; do
+            SERVICE=$(echo "$SERVICE" | xargs)
+            APP_NAME="production-${SERVICE}"
+
+            echo "Triggering sync for ${APP_NAME}..."
+            argocd app sync "$APP_NAME" \
+              --server "${{ env.ARGOCD_SERVER }}" \
+              --grpc-web \
+              --prune \
+              --timeout 600
+
+            echo "Waiting for ${APP_NAME} to become healthy..."
+            argocd app wait "$APP_NAME" \
+              --server "${{ env.ARGOCD_SERVER }}" \
+              --grpc-web \
+              --timeout 600 \
+              --health
+          done
+
+      - name: Run production smoke tests
+        run: |
+          echo "Running smoke tests against production..."
+
+          ENDPOINTS=(
+            "https://api.ecommerce.com/api/v1/users/health"
+            "https://api.ecommerce.com/api/v1/orders/health"
+            "https://api.ecommerce.com/api/v1/products/health"
+            "https://api.ecommerce.com/api/v1/payments/health"
+            "https://api.ecommerce.com/api/v1/notifications/health"
+          )
+
+          FAILED=0
+          for ENDPOINT in "${ENDPOINTS[@]}"; do
+            HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" \
+              --max-time 10 --retry 3 --retry-delay 5 \
+              "$ENDPOINT" || echo "000")
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "PASS: $ENDPOINT (HTTP $HTTP_CODE)"
+            else
+              echo "FAIL: $ENDPOINT (HTTP $HTTP_CODE)"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "ERROR: $FAILED production smoke test(s) failed"
+            echo "IMPORTANT: Production deployment may need manual rollback"
+            exit 1
+          fi
+          echo "All production smoke tests passed."
+
+      - name: Create deployment record
+        if: always()
+        run: |
+          DEPLOY_STATUS="${{ job.status }}"
+          TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          echo "Recording deployment..."
+          echo "{
+            \"timestamp\": \"${TIMESTAMP}\",
+            \"environment\": \"production\",
+            \"image_tag\": \"${{ needs.preflight.outputs.image_tag }}\",
+            \"services\": \"${{ needs.preflight.outputs.services }}\",
+            \"commit_sha\": \"${{ github.sha }}\",
+            \"actor\": \"${{ github.actor }}\",
+            \"status\": \"${DEPLOY_STATUS}\",
+            \"run_id\": \"${{ github.run_id }}\"
+          }" | tee deployment-record.json
+
+          # Push deployment metric to CloudWatch
+          aws cloudwatch put-metric-data \
+            --namespace "ECommerce/Deployments" \
+            --metric-name "DeploymentCount" \
+            --value 1 \
+            --dimensions Environment=production,Status="${DEPLOY_STATUS}" \
+            --timestamp "${TIMESTAMP}" \
+            --region "${{ env.AWS_REGION }}"
+
+      - name: Notify production deployment result
+        if: always()
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "channel": "#deployments",
+              "text": "Production deployment ${{ job.status }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "${{ job.status == 'success' && ':white_check_mark: *Production Deployment Successful*' || ':x: *Production Deployment Failed*' }}\n*Services:* ${{ needs.preflight.outputs.services }}\n*Tag:* `${{ needs.preflight.outputs.image_tag }}`\n*Approved by:* ${{ github.actor }}\n*Run:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # ===========================================================================
+  # Post-deployment: Update deployment tracking
+  # ===========================================================================
+  post-deploy:
+    name: Post-Deployment Tasks
+    needs:
+      - preflight
+      - deploy-production
+    if: always() && needs.deploy-production.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tag release in source repository
+        uses: actions/checkout@v4
+
+      - name: Create GitHub deployment status
+        uses: chrnorm/deployment-action@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          environment: production
+          description: "Deployed ${{ needs.preflight.outputs.image_tag }} to production"
+          initial-status: success
+          auto-merge: false
+
+      - name: Update deployment dashboard
+        run: |
+          echo "Deployment complete."
+          echo "  Environment: production"
+          echo "  Image tag:   ${{ needs.preflight.outputs.image_tag }}"
+          echo "  Services:    ${{ needs.preflight.outputs.services }}"
+          echo "  Commit:      ${{ github.sha }}"
+          echo "  Actor:       ${{ github.actor }}"
+          echo "  Timestamp:   $(date -u +%Y-%m-%dT%H:%M:%SZ)"

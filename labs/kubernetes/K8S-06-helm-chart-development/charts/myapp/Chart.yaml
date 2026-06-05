@@ -1,0 +1,29 @@
+apiVersion: v2
+name: myapp
+description: A production-grade Helm chart for a web application with PostgreSQL dependency
+type: application
+
+# Chart version (incremented on chart changes)
+version: 1.0.0
+
+# Application version (tracks the deployed app version)
+appVersion: "1.0.0"
+
+# Maintainers
+maintainers:
+  - name: Jenella Awo
+    url: https://github.com/vanessa9373
+
+# Keywords for chart discovery
+keywords:
+  - web
+  - application
+  - postgresql
+
+# Sub-chart dependencies
+dependencies:
+  - name: postgresql
+    version: "15.5.x"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+    # Values for the sub-chart are nested under postgresql: in values.yaml

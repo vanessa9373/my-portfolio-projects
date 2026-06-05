@@ -1,0 +1,56 @@
+# Staging environment overrides
+# Usage: helm upgrade --install myapp ./charts/myapp -f charts/myapp/values-staging.yaml
+
+replicaCount: 2
+
+image:
+  tag: "1.0.0-rc1"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+env:
+  LOG_LEVEL: "info"
+  DB_PORT: "5432"
+  DB_NAME: "appdb_staging"
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+  hosts:
+    - host: myapp.staging.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: myapp-staging-tls
+      hosts:
+        - myapp.staging.example.com
+
+autoscaling:
+  enabled: false
+
+postgresql:
+  enabled: true
+  auth:
+    username: appuser
+    existingSecret: "myapp-staging-db-secret"
+    database: appdb_staging
+  primary:
+    persistence:
+      size: 10Gi
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 512Mi

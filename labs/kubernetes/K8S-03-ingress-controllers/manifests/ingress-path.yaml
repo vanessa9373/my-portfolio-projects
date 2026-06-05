@@ -1,0 +1,44 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: path-based-routing
+  namespace: k8s-ingress
+  labels:
+    lab: k8s-03
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # Rate limiting example
+    nginx.ingress.kubernetes.io/limit-rps: "10"
+    # CORS headers
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: myapp.example.com
+      http:
+        paths:
+          # /app → app-frontend-svc
+          - path: /app
+            pathType: Prefix
+            backend:
+              service:
+                name: app-frontend-svc
+                port:
+                  name: http
+          # /api → api-backend-svc
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api-backend-svc
+                port:
+                  name: http
+          # /admin → admin-dashboard-svc
+          - path: /admin
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-dashboard-svc
+                port:
+                  name: http

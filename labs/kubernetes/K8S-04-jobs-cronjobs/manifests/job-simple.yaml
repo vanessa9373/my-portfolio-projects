@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: k8s-batch
+  labels:
+    lab: k8s-04
+    purpose: jobs-cronjobs
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migration
+  namespace: k8s-batch
+  labels:
+    app: db-migration
+    type: one-off
+    lab: k8s-04
+spec:
+  # Retry configuration
+  backoffLimit: 4                    # Retry up to 4 times (exponential backoff: 10s, 20s, 40s, 80s)
+  activeDeadlineSeconds: 600         # Kill the Job after 10 minutes total
+  ttlSecondsAfterFinished: 3600     # Auto-delete Job 1 hour after completion
+
+  template:
+    metadata:
+      labels:
+        app: db-migration
+        type: one-off
+    spec:
+      containers:
+        - name: migration
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "============================================"
+              echo "  Database Migration Job Started"
+              echo "  Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              echo "============================================"
+              echo ""
+              echo "[1/4] Connecting to database..."
+              sleep 2
+              echo "       Connected successfully."
+              echo ""
+              echo "[2/4] Checking current schema version..."
+              sleep 1
+              echo "       Current version: v2.3.1"
+              echo ""
+              echo "[3/4] Applying migration v2.3.1 → v2.4.0..."
+              sleep 3
+              echo "       - Adding column 'last_login' to users table"
+              echo "       - Creating index on orders.created_at"
+              echo "       - Updating foreign key constraints"
+              echo ""
+              echo "[4/4] Verifying migration..."
+              sleep 1
+              echo "       Schema version: v2.4.0"
+              echo "       Migration completed successfully!"
+              echo ""
+              echo "============================================"
+              echo "  Migration Complete — $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              echo "============================================"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          env:
+            - name: DB_HOST
+              value: "postgres.k8s-batch.svc.cluster.local"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "appdb"
+      restartPolicy: Never           # Jobs must use Never or OnFailure

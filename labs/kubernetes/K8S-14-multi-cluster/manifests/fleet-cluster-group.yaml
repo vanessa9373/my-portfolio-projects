@@ -1,0 +1,73 @@
+apiVersion: fleet.cattle.io/v1alpha1
+kind: ClusterGroup
+metadata:
+  name: production
+  namespace: fleet-default
+spec:
+  selector:
+    matchLabels:
+      environment: production
+---
+apiVersion: fleet.cattle.io/v1alpha1
+kind: ClusterGroup
+metadata:
+  name: staging
+  namespace: fleet-default
+spec:
+  selector:
+    matchLabels:
+      environment: staging
+---
+apiVersion: fleet.cattle.io/v1alpha1
+kind: ClusterGroup
+metadata:
+  name: development
+  namespace: fleet-default
+spec:
+  selector:
+    matchLabels:
+      environment: development
+---
+apiVersion: fleet.cattle.io/v1alpha1
+kind: ClusterGroup
+metadata:
+  name: edge
+  namespace: fleet-default
+spec:
+  selector:
+    matchLabels:
+      environment: edge
+---
+# All clusters group (for fleet-wide policies)
+apiVersion: fleet.cattle.io/v1alpha1
+kind: ClusterGroup
+metadata:
+  name: all-clusters
+  namespace: fleet-default
+spec:
+  selector:
+    matchExpressions:
+      - key: environment
+        operator: Exists
+---
+# US region clusters
+apiVersion: fleet.cattle.io/v1alpha1
+kind: ClusterGroup
+metadata:
+  name: us-region
+  namespace: fleet-default
+spec:
+  selector:
+    matchLabels:
+      region: us
+---
+# EU region clusters
+apiVersion: fleet.cattle.io/v1alpha1
+kind: ClusterGroup
+metadata:
+  name: eu-region
+  namespace: fleet-default
+spec:
+  selector:
+    matchLabels:
+      region: eu

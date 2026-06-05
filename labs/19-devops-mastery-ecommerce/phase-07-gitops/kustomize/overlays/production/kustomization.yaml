@@ -1,0 +1,63 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ecommerce-prod
+
+resources:
+  - ../../base
+
+commonLabels:
+  environment: production
+  team: platform
+
+commonAnnotations:
+  app.kubernetes.io/managed-by: argocd
+
+patches:
+  # Scale the deployment to production replica count
+  - target:
+      kind: Deployment
+      name: ".*"
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: placeholder
+      spec:
+        replicas: 3
+        template:
+          spec:
+            containers:
+              - name: ecommerce-service
+                resources:
+                  requests:
+                    cpu: 250m
+                    memory: 256Mi
+                  limits:
+                    cpu: 500m
+                    memory: 512Mi
+
+  # Ensure HPA targets match production expectations
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: ".*"
+    patch: |
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: placeholder
+      spec:
+        minReplicas: 3
+        maxReplicas: 20
+
+  # PDB — maintain minimum available during disruptions
+  - target:
+      kind: PodDisruptionBudget
+      name: ".*"
+    patch: |
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: placeholder
+      spec:
+        minAvailable: 2

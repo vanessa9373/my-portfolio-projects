@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qos-besteffort
+  namespace: team-a
+  labels:
+    app: qos-demo
+    qos-class: besteffort
+  annotations:
+    description: >
+      BestEffort QoS - no resource requests or limits specified.
+      This pod is the FIRST to be evicted under memory pressure.
+      Use only for non-critical, easily restartable workloads.
+spec:
+  # Use background priority since this is a non-critical workload
+  priorityClassName: background-batch
+  containers:
+    - name: app
+      image: nginx:1.25-alpine
+      ports:
+        - containerPort: 80
+      # BestEffort QoS: NO resources specified at all
+      # No requests, no limits = BestEffort
+      # These pods are the FIRST to be OOM-killed
+      # WARNING: In namespaces with ResourceQuota, pods without
+      # resource specs will be REJECTED. LimitRange must inject defaults.

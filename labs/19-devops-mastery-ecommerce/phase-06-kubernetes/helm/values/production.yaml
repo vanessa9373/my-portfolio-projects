@@ -1,0 +1,90 @@
+replicaCount: 3
+
+image:
+  repository: 123456789.dkr.ecr.us-east-1.amazonaws.com/user-service
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789:role/user-service-role
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilization: 70
+  targetMemoryUtilization: 80
+
+podDisruptionBudget:
+  minAvailable: 2
+
+probes:
+  liveness:
+    path: /health/live
+    initialDelaySeconds: 10
+    periodSeconds: 15
+    failureThreshold: 3
+  readiness:
+    path: /health/ready
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 3
+  startup:
+    path: /health/live
+    initialDelaySeconds: 0
+    periodSeconds: 5
+    failureThreshold: 30
+
+service:
+  type: ClusterIP
+  port: 3000
+
+ingress:
+  enabled: true
+  className: istio
+  hosts:
+    - host: api.ecommerce.example.com
+      paths:
+        - path: /api/users
+          pathType: Prefix
+
+env:
+  - name: NODE_ENV
+    value: production
+  - name: DATABASE_URL
+    valueFrom:
+      secretKeyRef:
+        name: user-service-secrets
+        key: database-url
+  - name: REDIS_URL
+    valueFrom:
+      secretKeyRef:
+        name: user-service-secrets
+        key: redis-url
+
+nodeSelector:
+  role: general
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - user-service
+          topologyKey: topology.kubernetes.io/zone

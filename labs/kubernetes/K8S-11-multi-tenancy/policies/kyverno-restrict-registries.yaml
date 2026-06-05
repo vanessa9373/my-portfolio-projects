@@ -1,0 +1,62 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-image-registries
+  annotations:
+    policies.kyverno.io/title: Restrict Image Registries
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Restricts container images to approved registries only.
+      Allowed: ECR, GCR, organization private registry, and select public images.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: validate-image-registry
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaceSelector:
+                matchLabels:
+                  tenant: "true"
+      validate:
+        message: >-
+          Images must be from approved registries:
+          *.dkr.ecr.*.amazonaws.com, gcr.io/*, registry.internal.company.com/*
+          Received: {{ request.object.spec.containers[].image }}
+        foreach:
+          - list: "request.object.spec.[containers, initContainers, ephemeralContainers][]"
+            deny:
+              conditions:
+                all:
+                  - key: "{{ element.image }}"
+                    operator: NotEquals
+                    value: ""
+                  - key: "{{ element.image }}"
+                    operator: AnyNotIn
+                    value:
+                      - "*.dkr.ecr.*.amazonaws.com/*"
+                      - "gcr.io/*"
+                      - "registry.internal.company.com/*"
+                      - "docker.io/library/*"
+                      - "nginx:*"
+                      - "redis:*"
+                      - "hashicorp/*"
+    - name: block-latest-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaceSelector:
+                matchLabels:
+                  tenant: "true"
+      validate:
+        message: "Using ':latest' tag is not allowed. Specify an explicit image tag."
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"

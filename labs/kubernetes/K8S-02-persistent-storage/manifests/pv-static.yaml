@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: static-pv-10gi
+  labels:
+    type: local
+    lab: k8s-02
+    tier: standard
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce          # Single node can mount read-write
+  persistentVolumeReclaimPolicy: Retain   # Keep data after PVC is deleted
+  storageClassName: manual                # Must match PVC's storageClassName
+  hostPath:
+    path: /mnt/data/static-pv            # Directory on the node
+    type: DirectoryOrCreate              # Create directory if it doesn't exist

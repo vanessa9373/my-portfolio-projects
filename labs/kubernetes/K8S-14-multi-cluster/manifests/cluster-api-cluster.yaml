@@ -1,0 +1,145 @@
+# Cluster API - Declarative cluster definition for AWS EKS
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: new-prod-ap
+  namespace: default
+  labels:
+    environment: production
+    region: ap-southeast-1
+    managed-by: cluster-api
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+        - 10.120.0.0/16
+    services:
+      cidrBlocks:
+        - 10.121.0.0/16
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+    kind: AWSManagedControlPlane
+    name: new-prod-ap-control-plane
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+    kind: AWSManagedCluster
+    name: new-prod-ap
+---
+# EKS Managed Control Plane
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+kind: AWSManagedControlPlane
+metadata:
+  name: new-prod-ap-control-plane
+  namespace: default
+spec:
+  region: ap-southeast-1
+  version: "v1.28"
+  sshKeyName: eks-ssh-key
+  roleAdditionalPolicies:
+    - "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+    - "arn:aws:iam::aws:policy/AmazonEKSVPCResourceController"
+  endpointAccess:
+    public: true
+    private: true
+  logging:
+    apiServer: true
+    audit: true
+    authenticator: true
+    controllerManager: true
+    scheduler: true
+  addons:
+    - name: vpc-cni
+      version: v1.15.4-eksbuild.1
+    - name: coredns
+      version: v1.10.1-eksbuild.6
+    - name: kube-proxy
+      version: v1.28.2-eksbuild.2
+  network:
+    vpc:
+      cidrBlock: 10.0.0.0/16
+    subnets:
+      - availabilityZone: ap-southeast-1a
+        cidrBlock: 10.0.1.0/24
+        isPublic: false
+      - availabilityZone: ap-southeast-1b
+        cidrBlock: 10.0.2.0/24
+        isPublic: false
+      - availabilityZone: ap-southeast-1c
+        cidrBlock: 10.0.3.0/24
+        isPublic: false
+      - availabilityZone: ap-southeast-1a
+        cidrBlock: 10.0.101.0/24
+        isPublic: true
+      - availabilityZone: ap-southeast-1b
+        cidrBlock: 10.0.102.0/24
+        isPublic: true
+---
+# AWS Managed Cluster (infrastructure)
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSManagedCluster
+metadata:
+  name: new-prod-ap
+  namespace: default
+spec: {}
+---
+# Worker Node MachinePool
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSManagedMachinePool
+metadata:
+  name: new-prod-ap-pool-0
+  namespace: default
+spec:
+  scaling:
+    minSize: 3
+    maxSize: 10
+  instanceType: m6i.xlarge
+  diskSize: 100
+  subnetIDs: []
+  labels:
+    nodegroup: general
+    environment: production
+  taints: []
+  amiType: AL2_x86_64
+  updateConfig:
+    maxUnavailable: 1
+---
+# Spot instance pool for non-critical workloads
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+kind: AWSManagedMachinePool
+metadata:
+  name: new-prod-ap-spot-pool
+  namespace: default
+spec:
+  scaling:
+    minSize: 0
+    maxSize: 20
+  capacityType: spot
+  instanceType: m6i.xlarge
+  diskSize: 50
+  labels:
+    nodegroup: spot
+    environment: production
+    workload-type: non-critical
+  taints:
+    - key: spot-instance
+      value: "true"
+      effect: NoSchedule
+---
+# MachinePool (machine deployment for worker nodes)
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachinePool
+metadata:
+  name: new-prod-ap-pool-0
+  namespace: default
+spec:
+  clusterName: new-prod-ap
+  replicas: 3
+  template:
+    spec:
+      clusterName: new-prod-ap
+      bootstrap:
+        dataSecretName: ""
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+        kind: AWSManagedMachinePool
+        name: new-prod-ap-pool-0

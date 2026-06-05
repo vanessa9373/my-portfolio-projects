@@ -1,0 +1,130 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: new-microservice
+  title: Create a New Microservice
+  description: |
+    Scaffold a production-ready microservice with CI/CD pipeline,
+    Helm chart, Dockerfile, observability, and ArgoCD deployment.
+  tags:
+    - nodejs
+    - python
+    - microservice
+    - recommended
+spec:
+  owner: platform-team
+  type: service
+  parameters:
+    - title: Service Details
+      required:
+        - name
+        - description
+        - owner
+      properties:
+        name:
+          title: Service Name
+          type: string
+          description: Unique name for the microservice (lowercase, hyphens only)
+          pattern: "^[a-z][a-z0-9-]*$"
+        description:
+          title: Description
+          type: string
+          description: Brief description of the service's purpose
+        owner:
+          title: Owner Team
+          type: string
+          ui:field: OwnerPicker
+          ui:options:
+            allowedKinds: [Group]
+
+    - title: Technical Configuration
+      properties:
+        language:
+          title: Language
+          type: string
+          enum:
+            - nodejs
+            - python
+          enumNames:
+            - Node.js (Express)
+            - Python (FastAPI)
+          default: nodejs
+        database:
+          title: Database
+          type: string
+          enum:
+            - postgresql
+            - none
+          enumNames:
+            - PostgreSQL (Aurora)
+            - None
+          default: postgresql
+        messaging:
+          title: Message Queue
+          type: string
+          enum:
+            - rabbitmq
+            - none
+          enumNames:
+            - RabbitMQ
+            - None
+          default: none
+        cache:
+          title: Cache
+          type: string
+          enum:
+            - redis
+            - none
+          enumNames:
+            - Redis (ElastiCache)
+            - None
+          default: none
+
+  steps:
+    - id: fetch-template
+      name: Fetch Base Template
+      action: fetch:template
+      input:
+        url: ./skeleton/${{ parameters.language }}
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          database: ${{ parameters.database }}
+          messaging: ${{ parameters.messaging }}
+          cache: ${{ parameters.cache }}
+
+    - id: publish
+      name: Publish to GitHub
+      action: publish:github
+      input:
+        repoUrl: github.com?owner=org&repo=${{ parameters.name }}
+        description: ${{ parameters.description }}
+        defaultBranch: main
+        protectDefaultBranch: true
+
+    - id: create-argocd-app
+      name: Create ArgoCD Application
+      action: argocd:create-resources
+      input:
+        appName: ${{ parameters.name }}
+        argoInstance: production
+        namespace: production
+        path: deploy/overlays/production
+
+    - id: register
+      name: Register in Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: ArgoCD Application
+        url: https://argocd.example.com/applications/${{ parameters.name }}
+      - title: Open in catalog
+        icon: catalog
+        entityRef: ${{ steps.register.output.entityRef }}

@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: team-a-limits
+  namespace: team-a
+  labels:
+    team: team-a
+spec:
+  limits:
+    # Default limits for containers that don't specify their own
+    - type: Container
+      default:
+        cpu: 500m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+      # Minimum resources any container can request
+      min:
+        cpu: 50m
+        memory: 64Mi
+      # Maximum resources any single container can use
+      max:
+        cpu: "4"
+        memory: 8Gi
+      # Maximum ratio of limits to requests (burst factor)
+      maxLimitRequestRatio:
+        cpu: "10"
+        memory: "4"
+
+    # Limits for entire pods (sum of all containers)
+    - type: Pod
+      max:
+        cpu: "8"
+        memory: 16Gi
+      min:
+        cpu: 50m
+        memory: 64Mi
+
+    # Default PVC size limits
+    - type: PersistentVolumeClaim
+      default:
+        storage: 5Gi
+      min:
+        storage: 1Gi
+      max:
+        storage: 50Gi

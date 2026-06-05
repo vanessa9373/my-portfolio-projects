@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-with-hooks
+  namespace: k8s-batch
+  labels:
+    app: app-with-hooks
+    lab: k8s-04
+spec:
+  containers:
+    - name: app
+      image: nginx:1.26-alpine
+      ports:
+        - containerPort: 80
+          name: http
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+      # --- Lifecycle Hooks ---
+      lifecycle:
+        # postStart: runs immediately after container starts
+        # Runs in parallel with the container's entrypoint (not guaranteed to run before)
+        # Use cases: register with service discovery, warm caches, send notifications
+        postStart:
+          exec:
+            command:
+              - sh
+              - -c
+              - |
+                echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) [LIFECYCLE] postStart hook executing..." > /usr/share/nginx/html/lifecycle.log
+                echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) [LIFECYCLE] Registering with service discovery..." >> /usr/share/nginx/html/lifecycle.log
+                sleep 1
+                echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) [LIFECYCLE] Warming up caches..." >> /usr/share/nginx/html/lifecycle.log
+                sleep 1
+                echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) [LIFECYCLE] postStart complete. Container ready." >> /usr/share/nginx/html/lifecycle.log
+
+        # preStop: runs before container receives SIGTERM
+        # Blocks container termination until it completes (or grace period expires)
+        # Use cases: drain connections, flush buffers, deregister from service discovery
+        preStop:
+          exec:
+            command:
+              - sh
+              - -c
+              - |
+                echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) [LIFECYCLE] preStop hook executing..." >> /usr/share/nginx/html/lifecycle.log
+                echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) [LIFECYCLE] Draining active connections..." >> /usr/share/nginx/html/lifecycle.log
+                sleep 5
+                echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) [LIFECYCLE] Flushing write buffers..." >> /usr/share/nginx/html/lifecycle.log
+                sleep 3
+                echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) [LIFECYCLE] Deregistering from service discovery..." >> /usr/share/nginx/html/lifecycle.log
+                sleep 2
+                echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) [LIFECYCLE] preStop complete. Safe to terminate." >> /usr/share/nginx/html/lifecycle.log
+                # Total preStop time: ~10 seconds
+                # Must be less than terminationGracePeriodSeconds
+
+      # Health probes
+      livenessProbe:
+        httpGet:
+          path: /
+          port: http
+        periodSeconds: 10
+      readinessProbe:
+        httpGet:
+          path: /
+          port: http
+        periodSeconds: 5
+
+  # terminationGracePeriodSeconds defines total time for:
+  # 1. preStop hook execution
+  # 2. SIGTERM handling
+  # After this period, SIGKILL is sent (cannot be caught)
+  terminationGracePeriodSeconds: 30     # 30 seconds total (preStop needs ~10s, leaving 20s for SIGTERM)
+
+  restartPolicy: Always

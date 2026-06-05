@@ -1,0 +1,117 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: etcd-backup-pvc
+  namespace: kube-system
+  labels:
+    app: etcd-backup
+    component: disaster-recovery
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: etcd-backup
+  namespace: kube-system
+  labels:
+    app: etcd-backup
+    component: disaster-recovery
+spec:
+  schedule: "0 */6 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 600
+  jobTemplate:
+    metadata:
+      labels:
+        app: etcd-backup
+    spec:
+      backoffLimit: 3
+      activeDeadlineSeconds: 300
+      template:
+        metadata:
+          labels:
+            app: etcd-backup
+        spec:
+          hostNetwork: true
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role.kubernetes.io/control-plane: ""
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+            - key: node-role.kubernetes.io/master
+              operator: Exists
+              effect: NoSchedule
+          containers:
+            - name: etcd-backup
+              image: registry.k8s.io/etcd:3.5.12-0
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+
+                  TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+                  BACKUP_DIR="/backup"
+                  SNAPSHOT_FILE="${BACKUP_DIR}/etcd-snapshot-${TIMESTAMP}.db"
+
+                  echo "=== etcd Backup Starting ==="
+                  echo "Timestamp: ${TIMESTAMP}"
+
+                  # Take the snapshot
+                  etcdctl snapshot save "${SNAPSHOT_FILE}" \
+                    --endpoints=https://127.0.0.1:2379 \
+                    --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+                    --cert=/etc/kubernetes/pki/etcd/server.crt \
+                    --key=/etc/kubernetes/pki/etcd/server.key
+
+                  # Verify snapshot integrity
+                  echo "Verifying snapshot integrity..."
+                  etcdctl snapshot status "${SNAPSHOT_FILE}" --write-out=table
+
+                  # Get snapshot size
+                  SNAPSHOT_SIZE=$(ls -lh "${SNAPSHOT_FILE}" | awk '{print $5}')
+                  echo "Snapshot size: ${SNAPSHOT_SIZE}"
+
+                  # Clean up old backups (keep last 30 days)
+                  echo "Cleaning up backups older than 30 days..."
+                  find "${BACKUP_DIR}" -name "etcd-snapshot-*.db" -mtime +30 -delete
+
+                  # List remaining backups
+                  echo "Current backups:"
+                  ls -lht "${BACKUP_DIR}"/etcd-snapshot-*.db 2>/dev/null || echo "  No backups found"
+
+                  echo "=== etcd Backup Complete ==="
+              env:
+                - name: ETCDCTL_API
+                  value: "3"
+              volumeMounts:
+                - name: etcd-certs
+                  mountPath: /etc/kubernetes/pki/etcd
+                  readOnly: true
+                - name: backup-storage
+                  mountPath: /backup
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+          volumes:
+            - name: etcd-certs
+              hostPath:
+                path: /etc/kubernetes/pki/etcd
+                type: DirectoryOrCreate
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: etcd-backup-pvc

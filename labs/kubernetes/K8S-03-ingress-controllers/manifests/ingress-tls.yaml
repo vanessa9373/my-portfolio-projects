@@ -1,0 +1,63 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tls-ingress
+  namespace: k8s-ingress
+  labels:
+    lab: k8s-03
+  annotations:
+    # cert-manager will see this annotation and auto-provision a certificate
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Force HTTPS redirect
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # HSTS header
+    nginx.ingress.kubernetes.io/hsts: "true"
+    nginx.ingress.kubernetes.io/hsts-max-age: "31536000"
+    nginx.ingress.kubernetes.io/hsts-include-subdomains: "true"
+    # Rate limiting
+    nginx.ingress.kubernetes.io/limit-rps: "20"
+    # Proxy settings
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  ingressClassName: nginx
+  # TLS configuration — cert-manager provisions and stores the certificate
+  tls:
+    - hosts:
+        - app.example.com
+        - api.example.com
+        - admin.example.com
+      secretName: example-com-tls    # cert-manager creates this Secret
+  rules:
+    # app.example.com → app-frontend-svc (HTTPS)
+    - host: app.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app-frontend-svc
+                port:
+                  name: http
+    # api.example.com → api-backend-svc (HTTPS)
+    - host: api.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-backend-svc
+                port:
+                  name: http
+    # admin.example.com → admin-dashboard-svc (HTTPS)
+    - host: admin.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-dashboard-svc
+                port:
+                  name: http

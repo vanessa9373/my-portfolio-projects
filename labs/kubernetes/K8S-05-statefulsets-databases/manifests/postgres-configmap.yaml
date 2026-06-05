@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  labels:
+    app: postgres
+data:
+  # Primary PostgreSQL configuration
+  postgresql.conf: |
+    listen_addresses = '*'
+    port = 5432
+    max_connections = 100
+    shared_buffers = 256MB
+    effective_cache_size = 768MB
+    work_mem = 4MB
+    maintenance_work_mem = 64MB
+
+    # WAL configuration for streaming replication
+    wal_level = replica
+    max_wal_senders = 5
+    wal_keep_size = 64MB
+    hot_standby = on
+    synchronous_commit = on
+
+    # Logging
+    log_destination = 'stderr'
+    logging_collector = off
+    log_statement = 'ddl'
+    log_min_duration_statement = 1000
+
+  # Host-based authentication for replication
+  pg_hba.conf: |
+    # TYPE  DATABASE        USER            ADDRESS                 METHOD
+    local   all             all                                     trust
+    host    all             all             127.0.0.1/32            trust
+    host    all             all             ::1/128                 trust
+
+    # Allow replication connections from any pod in the cluster
+    host    replication     replicator      10.0.0.0/8              md5
+    host    replication     replicator      172.16.0.0/12           md5
+
+    # Allow connections from within the cluster
+    host    all             all             10.0.0.0/8              md5
+    host    all             all             172.16.0.0/12           md5
+
+  # Initialization script for creating replication user
+  init-replication.sh: |
+    #!/bin/bash
+    set -e
+
+    # Only run on the primary (ordinal 0)
+    HOSTNAME=$(hostname)
+    ORDINAL=${HOSTNAME##*-}
+
+    if [ "$ORDINAL" = "0" ]; then
+      echo "Primary node detected. Creating replication user..."
+      psql -U postgres -c "CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD 'replpass';" || true
+      psql -U postgres -c "SELECT * FROM pg_create_physical_replication_slot('replica_slot_1');" || true
+      psql -U postgres -c "SELECT * FROM pg_create_physical_replication_slot('replica_slot_2');" || true
+      echo "Replication user and slots created."
+    else
+      echo "Replica node detected (ordinal: $ORDINAL). Skipping init."
+    fi

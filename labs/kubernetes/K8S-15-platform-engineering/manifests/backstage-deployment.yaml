@@ -1,0 +1,225 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: backstage
+  labels:
+    app.kubernetes.io/part-of: developer-platform
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backstage-app-config
+  namespace: backstage
+data:
+  app-config.yaml: |
+    app:
+      title: "Internal Developer Platform"
+      baseUrl: http://backstage.local:7007
+
+    organization:
+      name: "Platform Engineering Team"
+
+    backend:
+      baseUrl: http://backstage.local:7007
+      listen:
+        port: 7007
+      database:
+        client: pg
+        connection:
+          host: ${POSTGRES_HOST}
+          port: ${POSTGRES_PORT}
+          user: ${POSTGRES_USER}
+          password: ${POSTGRES_PASSWORD}
+
+    catalog:
+      import:
+        entityFilename: catalog-info.yaml
+        pullRequestBranchName: backstage-integration
+      rules:
+        - allow: [Component, System, API, Resource, Location, Template]
+      locations:
+        - type: url
+          target: https://github.com/org/software-templates/blob/main/catalog-info.yaml
+          rules:
+            - allow: [Template]
+        - type: url
+          target: https://github.com/org/service-catalog/blob/main/all-services.yaml
+          rules:
+            - allow: [Component, System, API, Resource]
+
+    techdocs:
+      builder: external
+      publisher:
+        type: awsS3
+        awsS3:
+          bucketName: backstage-techdocs
+          region: us-east-1
+
+    scaffolder:
+      defaultAuthor:
+        name: "Backstage Scaffolder"
+        email: platform-team@example.com
+      defaultCommitMessage: "feat: initial service scaffolding via Golden Path"
+
+    proxy:
+      "/crossplane":
+        target: "https://kubernetes.default.svc"
+        headers:
+          Authorization: "Bearer ${K8S_TOKEN}"
+
+    kubernetes:
+      serviceLocatorMethod:
+        type: multiTenant
+      clusterLocatorMethods:
+        - type: config
+          clusters:
+            - url: https://kubernetes.default.svc
+              name: production
+              authProvider: serviceAccount
+              serviceAccountToken: ${K8S_TOKEN}
+              skipTLSVerify: true
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backstage-secrets
+  namespace: backstage
+type: Opaque
+stringData:
+  POSTGRES_HOST: "backstage-postgresql.backstage.svc.cluster.local"
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: "backstage"
+  POSTGRES_PASSWORD: "changeme-use-sealed-secrets-in-prod"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backstage
+  namespace: backstage
+  labels:
+    app: backstage
+    app.kubernetes.io/name: backstage
+    app.kubernetes.io/part-of: developer-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backstage
+  template:
+    metadata:
+      labels:
+        app: backstage
+    spec:
+      serviceAccountName: backstage
+      containers:
+        - name: backstage
+          image: backstage/backstage:latest
+          ports:
+            - containerPort: 7007
+              name: http
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: backstage-secrets
+          volumeMounts:
+            - name: app-config
+              mountPath: /app/app-config.yaml
+              subPath: app-config.yaml
+              readOnly: true
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 7007
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 7007
+            initialDelaySeconds: 60
+            periodSeconds: 30
+      volumes:
+        - name: app-config
+          configMap:
+            name: backstage-app-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backstage
+  namespace: backstage
+  labels:
+    app: backstage
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7007
+      targetPort: 7007
+      protocol: TCP
+      name: http
+  selector:
+    app: backstage
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backstage
+  namespace: backstage
+  annotations:
+    description: "Service account for Backstage developer portal"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: backstage-kubernetes-reader
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["platform.example.com"]
+    resources: ["databases", "caches", "buckets"]
+    verbs: ["get", "list", "watch", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: backstage-kubernetes-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: backstage-kubernetes-reader
+subjects:
+  - kind: ServiceAccount
+    name: backstage
+    namespace: backstage
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backstage
+  namespace: backstage
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: backstage.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: backstage
+                port:
+                  number: 7007

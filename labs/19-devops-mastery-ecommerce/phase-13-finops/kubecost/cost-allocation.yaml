@@ -1,0 +1,451 @@
+# =============================================================================
+# FinOps Cost Allocation Configuration
+# E-Commerce Platform — Kubecost + Kubernetes Resource Management
+# =============================================================================
+# This file defines:
+#   1. Kubecost CostModel     — Shared cost allocation and idle cost distribution
+#   2. Kubecost AlertPolicy   — Anomaly detection for cost spikes
+#   3. ResourceQuota          — Namespace-level CPU/memory limits
+#   4. LimitRange             — Default container resource constraints
+# =============================================================================
+
+---
+# -----------------------------------------------------------------------------
+# 1. Kubecost CostModel Configuration
+# -----------------------------------------------------------------------------
+# Configures how Kubecost allocates shared cluster costs (control plane,
+# monitoring, service mesh, etc.) and distributes idle/unallocated resources
+# across namespaces. This ensures each team sees a fair representation of
+# their true infrastructure cost.
+# -----------------------------------------------------------------------------
+apiVersion: kubecost.com/v1alpha1
+kind: CostModel
+metadata:
+  name: ecommerce-cost-model
+  namespace: kubecost
+  labels:
+    app: kubecost
+    component: cost-model
+    environment: production
+  annotations:
+    kubecost.com/description: "Cost allocation model for e-commerce platform"
+spec:
+  # ---------------------------------------------------------------------------
+  # Shared Cost Allocation
+  # ---------------------------------------------------------------------------
+  # Shared costs are cluster-wide expenses that are not directly attributable
+  # to a single namespace. These include the EKS control plane fee, shared
+  # monitoring stack, service mesh overhead, and ingress controllers.
+  # ---------------------------------------------------------------------------
+  sharedCosts:
+    # Shared namespaces whose costs are distributed across all workloads
+    sharedNamespaces:
+      - kube-system
+      - istio-system
+      - monitoring
+      - cert-manager
+      - external-dns
+      - kubecost
+      - flagger-system
+      - argocd
+
+    # How to distribute shared costs across namespaces
+    # "weighted" distributes proportionally based on each namespace's resource usage
+    shareMethod: weighted
+
+    # Weight metric: proportion based on total cost (CPU + memory + storage)
+    shareWeightMetric: totalCost
+
+    # Shared overhead costs not captured by namespace-level accounting
+    sharedOverhead:
+      # EKS control plane cost (per cluster per month)
+      controlPlane:
+        monthlyCost: 73.00
+        currency: USD
+
+      # Shared load balancers (ALB Ingress Controller)
+      loadBalancers:
+        monthlyCost: 120.00
+        currency: USD
+
+      # NAT Gateway costs shared across all namespaces
+      natGateway:
+        monthlyCost: 200.00
+        currency: USD
+
+    # Labels used to identify shared resources
+    sharedLabels:
+      - name: "app.kubernetes.io/part-of"
+        value: "shared-infrastructure"
+
+  # ---------------------------------------------------------------------------
+  # Idle Cost Distribution
+  # ---------------------------------------------------------------------------
+  # Idle costs represent provisioned but unused resources. These arise from
+  # over-provisioning (requested > used) or cluster autoscaler lag. Kubecost
+  # can distribute idle costs to make teams aware of their waste.
+  # ---------------------------------------------------------------------------
+  idleCosts:
+    # Enable idle cost allocation
+    enabled: true
+
+    # Distribution method:
+    #   "proportional" — distribute based on each namespace's share of requests
+    #   "even" — distribute equally across all namespaces
+    distributionMethod: proportional
+
+    # Separate CPU and memory idle costs for more granular visibility
+    separateByResource: true
+
+    # Thresholds for idle cost alerting (percentage of total namespace cost)
+    alertThreshold: 30
+
+  # ---------------------------------------------------------------------------
+  # Allocation Properties
+  # ---------------------------------------------------------------------------
+  allocation:
+    # Primary aggregation label for cost reporting
+    aggregationLabels:
+      - team
+      - service
+      - environment
+
+    # Map Kubernetes labels to cost allocation dimensions
+    labelMapping:
+      team: "app.kubernetes.io/team"
+      service: "app.kubernetes.io/name"
+      environment: "app.kubernetes.io/environment"
+      department: "app.kubernetes.io/department"
+
+    # Filters for cost allocation queries
+    filters:
+      # Exclude system namespaces from direct allocation (handled as shared)
+      excludeNamespaces:
+        - kube-system
+        - kube-public
+        - kube-node-lease
+
+  # ---------------------------------------------------------------------------
+  # Cloud Cost Integration
+  # ---------------------------------------------------------------------------
+  cloudIntegration:
+    # AWS Cost and Usage Report integration
+    provider: aws
+    awsServicePricing:
+      spotPricingEnabled: true
+      spotDataRegion: us-east-1
+      spotDataBucket: ecommerce-kubecost-spot-data
+      spotDataPrefix: spot-pricing
+
+    # Use custom pricing for reserved instances and savings plans
+    customPricing:
+      enabled: true
+      configPath: /var/configs/custom-pricing.json
+
+  # ---------------------------------------------------------------------------
+  # Data Retention
+  # ---------------------------------------------------------------------------
+  retention:
+    # How long to retain hourly cost data
+    hourlyData: 48h
+    # How long to retain daily cost data
+    dailyData: 90d
+    # How long to retain monthly cost data
+    monthlyData: 365d
+
+---
+# -----------------------------------------------------------------------------
+# 2. Kubecost AlertPolicy — Anomaly Detection
+# -----------------------------------------------------------------------------
+# Defines alerts for cost anomalies: namespace cost spikes, unallocated cost
+# thresholds, and budget overruns. Alerts are sent to Slack and PagerDuty.
+# -----------------------------------------------------------------------------
+apiVersion: kubecost.com/v1alpha1
+kind: AlertPolicy
+metadata:
+  name: ecommerce-cost-alerts
+  namespace: kubecost
+  labels:
+    app: kubecost
+    component: alerting
+    environment: production
+spec:
+  # ---------------------------------------------------------------------------
+  # Alert: Namespace Cost Spike
+  # ---------------------------------------------------------------------------
+  # Triggers when any namespace's daily cost increases by more than 20%
+  # compared to the 7-day rolling average. This catches runaway workloads,
+  # autoscaler misconfigurations, and unexpected traffic spikes.
+  # ---------------------------------------------------------------------------
+  alerts:
+    - name: namespace-cost-spike
+      type: budget
+      enabled: true
+      description: "Namespace cost increased by more than 20% compared to 7-day average"
+      # Alert evaluation window
+      window: 1d
+      # Aggregation level
+      aggregation: namespace
+      # Threshold: 20% increase over baseline
+      threshold:
+        type: percentage
+        value: 20
+        baselineWindow: 7d
+        comparisonOperator: greaterThan
+      # Filter to production namespaces only
+      filter:
+        namespaces:
+          - ecommerce-prod
+          - ecommerce-staging
+      # Notification channels
+      notifications:
+        - type: slack
+          channel: "#finops-alerts"
+          webhook: "https://hooks.slack.com/services/XXXXX/YYYYY/ZZZZZ"
+          frequency: 4h
+        - type: email
+          recipients:
+            - finops@ecommerce.com
+            - platform-leads@ecommerce.com
+          frequency: 24h
+      # Severity for PagerDuty routing
+      severity: warning
+
+    # ---------------------------------------------------------------------------
+    # Alert: Unallocated Cost Threshold
+    # ---------------------------------------------------------------------------
+    # Triggers when unallocated (idle) costs exceed 15% of total cluster cost.
+    # High unallocated costs indicate over-provisioning and waste.
+    # ---------------------------------------------------------------------------
+    - name: unallocated-cost-high
+      type: efficiency
+      enabled: true
+      description: "Unallocated cluster cost exceeds 15% of total spend"
+      window: 1d
+      aggregation: cluster
+      threshold:
+        type: percentage
+        value: 15
+        metric: idleCost
+        comparisonOperator: greaterThan
+      notifications:
+        - type: slack
+          channel: "#finops-alerts"
+          webhook: "https://hooks.slack.com/services/XXXXX/YYYYY/ZZZZZ"
+          frequency: 24h
+        - type: email
+          recipients:
+            - finops@ecommerce.com
+          frequency: 24h
+      severity: warning
+
+    # ---------------------------------------------------------------------------
+    # Alert: Monthly Budget Overrun
+    # ---------------------------------------------------------------------------
+    # Triggers when projected monthly spend exceeds the allocated budget. Uses
+    # a forecast based on current burn rate.
+    # ---------------------------------------------------------------------------
+    - name: monthly-budget-overrun
+      type: budget
+      enabled: true
+      description: "Projected monthly spend exceeds allocated budget"
+      window: 30d
+      aggregation: namespace
+      threshold:
+        type: absolute
+        value: 15000
+        currency: USD
+        comparisonOperator: greaterThan
+        useProjection: true
+      filter:
+        namespaces:
+          - ecommerce-prod
+      notifications:
+        - type: slack
+          channel: "#finops-alerts"
+          webhook: "https://hooks.slack.com/services/XXXXX/YYYYY/ZZZZZ"
+          frequency: 24h
+        - type: pagerduty
+          integrationKey: "PAGERDUTY_INTEGRATION_KEY"
+          frequency: 24h
+      severity: critical
+
+    # ---------------------------------------------------------------------------
+    # Alert: Resource Efficiency Drop
+    # ---------------------------------------------------------------------------
+    # Triggers when CPU or memory utilization efficiency drops below 40%,
+    # indicating significant over-provisioning.
+    # ---------------------------------------------------------------------------
+    - name: low-resource-efficiency
+      type: efficiency
+      enabled: true
+      description: "Resource efficiency below 40% — workloads are over-provisioned"
+      window: 24h
+      aggregation: namespace
+      threshold:
+        type: percentage
+        value: 40
+        metric: resourceEfficiency
+        comparisonOperator: lessThan
+      filter:
+        namespaces:
+          - ecommerce-prod
+      notifications:
+        - type: slack
+          channel: "#finops-recommendations"
+          webhook: "https://hooks.slack.com/services/XXXXX/YYYYY/ZZZZZ"
+          frequency: 168h
+        - type: email
+          recipients:
+            - finops@ecommerce.com
+          frequency: 168h
+      severity: info
+
+---
+# -----------------------------------------------------------------------------
+# 3. ResourceQuota — Namespace Resource Limits
+# -----------------------------------------------------------------------------
+# Enforces aggregate resource limits for the ecommerce-prod namespace. This
+# prevents any single namespace from consuming more than its fair share of
+# cluster resources and provides a guardrail against runaway autoscaling.
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ecommerce-prod-quota
+  namespace: ecommerce-prod
+  labels:
+    app.kubernetes.io/part-of: ecommerce-platform
+    app.kubernetes.io/component: resource-management
+    app.kubernetes.io/managed-by: platform-engineering
+  annotations:
+    description: "Resource quota for the ecommerce production namespace"
+    budget-owner: "ecommerce-engineering"
+    monthly-budget: "15000 USD"
+spec:
+  hard:
+    # -------------------------------------------------------------------------
+    # Compute Resources
+    # -------------------------------------------------------------------------
+    # Total CPU and memory that all pods in the namespace can request/consume.
+    # These values are sized for the expected production workload plus 30%
+    # headroom for autoscaling bursts.
+    # -------------------------------------------------------------------------
+    requests.cpu: "40"
+    requests.memory: 80Gi
+    limits.cpu: "80"
+    limits.memory: 160Gi
+
+    # -------------------------------------------------------------------------
+    # Storage Resources
+    # -------------------------------------------------------------------------
+    requests.storage: 500Gi
+    persistentvolumeclaims: "50"
+    requests.ephemeral-storage: 100Gi
+
+    # -------------------------------------------------------------------------
+    # Object Counts
+    # -------------------------------------------------------------------------
+    # Limit the number of key Kubernetes objects to prevent accidental
+    # resource explosion (e.g., a misconfigured CronJob creating thousands
+    # of pods).
+    # -------------------------------------------------------------------------
+    pods: "200"
+    services: "30"
+    secrets: "100"
+    configmaps: "100"
+    replicationcontrollers: "0"
+    services.loadbalancers: "5"
+    services.nodeports: "0"
+
+    # -------------------------------------------------------------------------
+    # GPU Resources (if applicable)
+    # -------------------------------------------------------------------------
+    # requests.nvidia.com/gpu: "0"
+
+  # Scopes limit which pods this quota applies to
+  scopes: []
+  scopeSelector:
+    matchExpressions: []
+
+---
+# -----------------------------------------------------------------------------
+# 4. LimitRange — Default Container Resource Constraints
+# -----------------------------------------------------------------------------
+# Sets default resource requests and limits for containers that do not
+# specify their own. This ensures every container has a resource envelope,
+# which is critical for the Kubernetes scheduler, HPA, and Kubecost
+# cost allocation accuracy.
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: ecommerce-prod-limits
+  namespace: ecommerce-prod
+  labels:
+    app.kubernetes.io/part-of: ecommerce-platform
+    app.kubernetes.io/component: resource-management
+    app.kubernetes.io/managed-by: platform-engineering
+  annotations:
+    description: "Default resource limits for containers in ecommerce-prod"
+spec:
+  limits:
+    # -------------------------------------------------------------------------
+    # Container Defaults
+    # -------------------------------------------------------------------------
+    # If a container does not specify requests or limits, these defaults are
+    # applied. The defaults are conservative to avoid over-provisioning while
+    # ensuring basic functionality.
+    # -------------------------------------------------------------------------
+    - type: Container
+      # Default resource requests (used by the scheduler for bin-packing)
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+        ephemeral-storage: 256Mi
+      # Default resource limits (enforced via cgroups)
+      default:
+        cpu: 500m
+        memory: 512Mi
+        ephemeral-storage: 1Gi
+      # Maximum resources a single container can request
+      max:
+        cpu: "8"
+        memory: 16Gi
+        ephemeral-storage: 10Gi
+      # Minimum resources a container must request (prevents tiny containers
+      # that are difficult to schedule efficiently)
+      min:
+        cpu: 10m
+        memory: 16Mi
+        ephemeral-storage: 32Mi
+      # Maximum ratio of limit to request. A ratio of 5 means the limit can
+      # be at most 5x the request. This prevents extreme overcommit scenarios.
+      maxLimitRequestRatio:
+        cpu: "10"
+        memory: "8"
+
+    # -------------------------------------------------------------------------
+    # Pod Defaults
+    # -------------------------------------------------------------------------
+    # Aggregate limits for all containers within a single pod.
+    # -------------------------------------------------------------------------
+    - type: Pod
+      max:
+        cpu: "16"
+        memory: 32Gi
+      min:
+        cpu: 10m
+        memory: 16Mi
+
+    # -------------------------------------------------------------------------
+    # PersistentVolumeClaim Defaults
+    # -------------------------------------------------------------------------
+    # Constrains PVC sizes to prevent individual services from claiming
+    # excessively large volumes.
+    # -------------------------------------------------------------------------
+    - type: PersistentVolumeClaim
+      max:
+        storage: 100Gi
+      min:
+        storage: 1Gi

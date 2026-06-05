@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qos-guaranteed
+  namespace: team-a
+  labels:
+    app: qos-demo
+    qos-class: guaranteed
+spec:
+  containers:
+    - name: app
+      image: nginx:1.25-alpine
+      ports:
+        - containerPort: 80
+      # Guaranteed QoS: requests MUST equal limits for ALL resources
+      # on ALL containers in the pod
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: 200m        # Same as request
+          memory: 256Mi    # Same as request
+      # Guaranteed pods are the LAST to be OOM-killed
+      # They get the most predictable performance

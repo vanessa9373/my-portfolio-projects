@@ -1,0 +1,128 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  # Template defines the node characteristics
+  template:
+    metadata:
+      labels:
+        managed-by: karpenter
+        environment: production
+    spec:
+      # Reference to the EC2NodeClass for provider-specific config
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+
+      # Instance type requirements -- Karpenter selects the best fit
+      requirements:
+        # Instance families to consider
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values:
+            - m5     # General purpose
+            - c5     # Compute optimized
+            - r5     # Memory optimized
+            - m6i    # General purpose (Intel 6th gen)
+            - c6i    # Compute optimized (Intel 6th gen)
+
+        # Instance sizes (Karpenter picks the right size)
+        - key: karpenter.k8s.aws/instance-size
+          operator: In
+          values:
+            - large
+            - xlarge
+            - 2xlarge
+            - 4xlarge
+
+        # Mix spot and on-demand for cost optimization
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values:
+            - spot
+            - on-demand
+
+        # Spread across availability zones
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values:
+            - us-east-1a
+            - us-east-1b
+            - us-east-1c
+
+        # Linux only
+        - key: kubernetes.io/os
+          operator: In
+          values:
+            - linux
+
+        # AMD64 architecture
+        - key: kubernetes.io/arch
+          operator: In
+          values:
+            - amd64
+
+  # Disruption settings for consolidation
+  disruption:
+    # Consolidate underutilized nodes after 30 seconds
+    consolidateAfter: 30s
+    consolidationPolicy: WhenEmptyOrUnderutilized
+
+    # Budget: only disrupt 10% of nodes at a time
+    budgets:
+      - nodes: "10%"
+
+  # Limits: maximum resources this NodePool can provision
+  limits:
+    cpu: "100"
+    memory: 400Gi
+
+  # Weight: prefer this NodePool over others (higher = preferred)
+  weight: 50
+
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  # AMI family -- Karpenter selects the latest AMI
+  amiFamily: AL2023
+
+  # Subnet discovery by tags
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "my-cluster"
+        kubernetes.io/role/internal-elb: "1"
+
+  # Security group discovery by tags
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "my-cluster"
+
+  # IAM instance profile for the nodes
+  instanceProfile: "KarpenterNodeInstanceProfile-my-cluster"
+
+  # EBS volume configuration
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 50Gi
+        volumeType: gp3
+        iops: 3000
+        throughput: 125
+        encrypted: true
+        deleteOnTermination: true
+
+  # Tags applied to provisioned EC2 instances
+  tags:
+    Environment: production
+    ManagedBy: karpenter
+    Team: platform
+
+  # User data for node bootstrap customization
+  userData: |
+    #!/bin/bash
+    echo "Node provisioned by Karpenter at $(date)" >> /var/log/karpenter-init.log

@@ -1,0 +1,131 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+    component: database
+spec:
+  serviceName: postgres-headless
+  replicas: 3
+  podManagementPolicy: OrderedReady  # Pods created 0 -> 1 -> 2, deleted 2 -> 1 -> 0
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        component: database
+    spec:
+      terminationGracePeriodSeconds: 30
+      # Spread pods across nodes for high availability
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - postgres
+                topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: init-config
+          image: postgres:16-alpine
+          command:
+            - bash
+            - -c
+            - |
+              HOSTNAME=$(hostname)
+              ORDINAL=${HOSTNAME##*-}
+
+              # Copy base configuration
+              cp /config/postgresql.conf /etc/postgresql/postgresql.conf
+              cp /config/pg_hba.conf /etc/postgresql/pg_hba.conf
+
+              if [ "$ORDINAL" != "0" ]; then
+                echo "Replica node (ordinal: $ORDINAL). Configuring standby..."
+                cat >> /etc/postgresql/postgresql.conf <<EOF
+              primary_conninfo = 'host=postgres-0.postgres-headless.default.svc.cluster.local port=5432 user=replicator password=replpass'
+              primary_slot_name = 'replica_slot_${ORDINAL}'
+              EOF
+              fi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: config-out
+              mountPath: /etc/postgresql
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRES_PASSWORD
+              value: "pgpass123"
+            - name: POSTGRES_DB
+              value: "appdb"
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          args:
+            - -c
+            - config_file=/etc/postgresql/postgresql.conf
+            - -c
+            - hba_file=/etc/postgresql/pg_hba.conf
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+                - -d
+                - appdb
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: config-out
+              mountPath: /etc/postgresql
+      volumes:
+        - name: config
+          configMap:
+            name: postgres-config
+        - name: config-out
+          emptyDir: {}
+  # volumeClaimTemplates: each pod gets its own PVC automatically
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app: postgres
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 10Gi

@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-alpha
+  labels:
+    tenant: "true"
+    team: alpha
+    cost-center: cc-1001
+    environment: production
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-bravo
+  labels:
+    tenant: "true"
+    team: bravo
+    cost-center: cc-1002
+    environment: production
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-charlie
+  labels:
+    tenant: "true"
+    team: charlie
+    cost-center: cc-1003
+    environment: staging
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-delta
+  labels:
+    tenant: "true"
+    team: delta
+    cost-center: cc-1004
+    environment: production
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-echo-vcluster
+  labels:
+    tenant: "true"
+    team: echo
+    cost-center: cc-1005
+    environment: production
+    isolation: vcluster

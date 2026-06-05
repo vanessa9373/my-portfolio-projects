@@ -1,0 +1,135 @@
+# Cilium Helm values for eBPF-based networking
+# Replaces kube-proxy with native eBPF load balancing
+
+# Core configuration
+cluster:
+  name: production-cluster
+  id: 1
+
+# eBPF kube-proxy replacement
+kubeProxyReplacement: true
+k8sServiceHost: "KUBERNETES_API_SERVER_IP"
+k8sServicePort: "6443"
+
+# eBPF dataplane configuration
+bpf:
+  masquerade: true
+  clockProbe: true
+  preallocateMaps: true
+  tproxy: true
+  # Map sizing for large clusters
+  mapDynamicSizeRatio: 0.0025
+  # LB algorithm: maglev for consistent hashing
+  lbAlgorithm: maglev
+  lbMaglevTableSize: "65521"
+
+# Direct Server Return (DSR) for load balancing
+loadBalancer:
+  algorithm: maglev
+  mode: dsr
+  acceleration: native
+  # Service session affinity
+  serviceTopology: true
+
+# Native routing mode (no encapsulation overhead)
+routingMode: native
+ipv4NativeRoutingCIDR: "10.0.0.0/8"
+autoDirectNodeRoutes: true
+
+# Bandwidth management via eBPF
+bandwidthManager:
+  enabled: true
+  bbr: true
+
+# IP Address Management
+ipam:
+  mode: kubernetes
+  operator:
+    clusterPoolIPv4PodCIDRList:
+      - "10.244.0.0/16"
+    clusterPoolIPv4MaskSize: 24
+
+# Hubble observability
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+  ui:
+    enabled: true
+    ingress:
+      enabled: true
+      hosts:
+        - hubble.local
+  metrics:
+    enabled:
+      - dns:query;ignoreAAAA
+      - drop
+      - tcp
+      - flow
+      - icmp
+      - http
+    serviceMonitor:
+      enabled: true
+
+# Network policy engine
+enableCiliumEndpointSlice: true
+
+# Security
+encryption:
+  enabled: true
+  type: wireguard
+  wireguard:
+    userspaceFallback: false
+
+# Operator configuration
+operator:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  prometheus:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+# Agent configuration
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+# Prometheus metrics
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    labels:
+      release: prometheus
+
+# Health checking
+healthChecking: true
+healthPort: 9876
+
+# Enable policy audit mode for migration
+policyAuditMode: false
+
+# MTU configuration (auto-detect)
+mtu: 0
+
+# Debug (disable in production)
+debug:
+  enabled: false

@@ -1,0 +1,339 @@
+# =============================================================================
+# Canary Release Configuration for user-service
+# E-Commerce Platform — Istio + Flagger Progressive Delivery
+# =============================================================================
+# This file defines:
+#   1. VirtualService — Routes traffic between stable (90%) and canary (10%)
+#   2. DestinationRule  — Defines stable/canary subsets by version label
+#   3. Flagger Canary  — Automates progressive delivery with metrics gates
+# =============================================================================
+
+---
+# -----------------------------------------------------------------------------
+# 1. Istio VirtualService — Canary Traffic Routing
+# -----------------------------------------------------------------------------
+# Splits inbound traffic to user-service between the stable and canary
+# subsets. During an active canary rollout, Flagger dynamically adjusts the
+# weights. The initial configuration below represents the starting state
+# before Flagger takes control.
+# -----------------------------------------------------------------------------
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: user-service
+  namespace: ecommerce-prod
+  labels:
+    app: user-service
+    component: canary-routing
+    managed-by: flagger
+  annotations:
+    flagger.app/description: "Canary routing for user-service with 90/10 split"
+spec:
+  hosts:
+    - user-service
+    - user-service.ecommerce-prod.svc.cluster.local
+  gateways:
+    - mesh
+    - ecommerce-gateway
+  http:
+    # Primary route with canary weight split
+    - match:
+        - uri:
+            prefix: /api/v1/users
+        - uri:
+            prefix: /api/v1/auth
+        - uri:
+            prefix: /api/v1/profiles
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+        retryOn: gateway-error,connect-failure,refused-stream,unavailable,cancelled,retriable-4xx
+      timeout: 10s
+      fault:
+        delay:
+          percentage:
+            value: 0
+          fixedDelay: 0s
+      route:
+        - destination:
+            host: user-service
+            subset: stable
+            port:
+              number: 8080
+          weight: 90
+        - destination:
+            host: user-service
+            subset: canary
+            port:
+              number: 8080
+          weight: 10
+      headers:
+        response:
+          add:
+            x-canary-version: "active"
+      corsPolicy:
+        allowOrigins:
+          - regex: ".*\\.ecommerce\\.com"
+        allowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - PATCH
+          - OPTIONS
+        allowHeaders:
+          - Authorization
+          - Content-Type
+          - X-Request-ID
+          - X-Trace-ID
+        maxAge: "24h"
+    # Health check route always goes to stable
+    - match:
+        - uri:
+            exact: /healthz
+        - uri:
+            exact: /readyz
+      route:
+        - destination:
+            host: user-service
+            subset: stable
+            port:
+              number: 8080
+          weight: 100
+
+---
+# -----------------------------------------------------------------------------
+# 2. Istio DestinationRule — Subset Definitions
+# -----------------------------------------------------------------------------
+# Defines the stable and canary subsets based on the `version` label applied
+# to pods. The stable subset receives production traffic; the canary subset
+# receives a progressively increasing share during rollout.
+# -----------------------------------------------------------------------------
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: user-service
+  namespace: ecommerce-prod
+  labels:
+    app: user-service
+    component: canary-routing
+    managed-by: flagger
+spec:
+  host: user-service.ecommerce-prod.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 1000
+        connectTimeout: 5s
+        tcpKeepalive:
+          time: 7200s
+          interval: 75s
+          probes: 9
+      http:
+        h2UpgradePolicy: DEFAULT
+        maxRequestsPerConnection: 100
+        maxRetries: 3
+        maxPendingRequests: 1000
+        maxConcurrentStreams: 100
+    loadBalancer:
+      simple: LEAST_REQUEST
+      localityLbSetting:
+        enabled: true
+        failover:
+          - from: us-east-1
+            to: us-west-2
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 70
+  subsets:
+    - name: stable
+      labels:
+        version: stable
+      trafficPolicy:
+        connectionPool:
+          tcp:
+            maxConnections: 1000
+          http:
+            maxRequestsPerConnection: 100
+    - name: canary
+      labels:
+        version: canary
+      trafficPolicy:
+        connectionPool:
+          tcp:
+            maxConnections: 500
+          http:
+            maxRequestsPerConnection: 50
+
+---
+# -----------------------------------------------------------------------------
+# 3. Flagger Canary — Automated Progressive Delivery
+# -----------------------------------------------------------------------------
+# Flagger manages the full canary lifecycle: it creates the canary
+# deployment, shifts traffic in increments of stepWeight (10%) up to
+# maxWeight (50%), runs metric checks at each step, and promotes or rolls
+# back automatically based on SLO thresholds.
+# -----------------------------------------------------------------------------
+apiVersion: flagger.app/v1beta1
+kind: Canary
+metadata:
+  name: user-service
+  namespace: ecommerce-prod
+  labels:
+    app: user-service
+    component: progressive-delivery
+  annotations:
+    flagger.app/description: "Progressive canary delivery for user-service"
+    prometheus.io/scrape: "true"
+spec:
+  # Target deployment that Flagger will manage
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: user-service
+  # Autoscaler reference — Flagger will scale the canary to match
+  autoscalerRef:
+    apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    name: user-service
+
+  # Istio service mesh provider
+  provider: istio
+
+  # Service configuration for the generated ClusterIP services
+  service:
+    name: user-service
+    port: 8080
+    targetPort: 8080
+    portName: http
+    portDiscovery: true
+    gateways:
+      - ecommerce-gateway
+      - mesh
+    hosts:
+      - user-service.ecommerce-prod.svc.cluster.local
+    trafficPolicy:
+      tls:
+        mode: ISTIO_MUTUAL
+    retries:
+      attempts: 3
+      perTryTimeout: 2s
+      retryOn: "gateway-error,connect-failure,refused-stream"
+
+  # Progressive delivery configuration
+  analysis:
+    # Canary analysis interval — time between each traffic weight increase
+    interval: 1m
+
+    # Maximum number of failed metric checks before rollback
+    threshold: 5
+
+    # Maximum canary traffic weight (percentage)
+    maxWeight: 50
+
+    # Traffic weight increase step (percentage)
+    stepWeight: 10
+
+    # Number of iterations at max weight before promotion
+    iterations: 10
+
+    # Enable mirroring for the first step (shadow traffic)
+    mirror: false
+
+    # Custom metric checks evaluated at each analysis interval
+    metrics:
+      # Request success rate must be above 99%
+      - name: request-success-rate
+        templateRef:
+          name: request-success-rate
+          namespace: istio-system
+        thresholdRange:
+          min: 99
+        interval: 1m
+
+      # P99 request duration must be below 500ms
+      - name: request-duration
+        templateRef:
+          name: request-duration
+          namespace: istio-system
+        thresholdRange:
+          max: 500
+        interval: 1m
+
+      # Custom: error rate from Prometheus
+      - name: error-rate
+        templateRef:
+          name: error-rate
+          namespace: ecommerce-prod
+        thresholdRange:
+          max: 1
+        interval: 1m
+
+      # Custom: P95 latency from Prometheus
+      - name: latency-p95
+        templateRef:
+          name: latency-p95
+          namespace: ecommerce-prod
+        thresholdRange:
+          max: 400
+        interval: 1m
+
+    # Webhooks for load testing and notifications
+    webhooks:
+      # Pre-rollout: run smoke tests against the canary before shifting traffic
+      - name: smoke-test
+        type: pre-rollout
+        url: http://flagger-loadtester.ecommerce-prod/
+        timeout: 120s
+        metadata:
+          type: bash
+          cmd: "curl -sf http://user-service-canary.ecommerce-prod:8080/healthz && curl -sf http://user-service-canary.ecommerce-prod:8080/readyz"
+
+      # Load testing: generate synthetic traffic during the canary analysis
+      - name: load-test
+        type: rollout
+        url: http://flagger-loadtester.ecommerce-prod/
+        timeout: 60s
+        metadata:
+          type: cmd
+          cmd: "hey -z 1m -q 10 -c 5 -H 'Host: user-service.ecommerce-prod.svc.cluster.local' http://user-service-canary.ecommerce-prod:8080/api/v1/users/health"
+          logCmdOutput: "true"
+
+      # Integration test: run API contract tests against the canary
+      - name: integration-test
+        type: rollout
+        url: http://flagger-loadtester.ecommerce-prod/
+        timeout: 180s
+        metadata:
+          type: bash
+          cmd: "curl -sf http://user-service-canary.ecommerce-prod:8080/api/v1/users?limit=1 | jq '.data | length > 0'"
+
+      # Confirm promotion: notify Slack before promoting canary to stable
+      - name: promotion-notification
+        type: confirm-promotion
+        url: http://flagger-loadtester.ecommerce-prod/gate/approve
+
+      # Event webhook: send canary events to Slack
+      - name: slack-notification
+        type: event
+        url: http://slack-notifier.ecommerce-prod/
+        metadata:
+          channel: "platform-deployments"
+          severity: "info"
+
+    # Alert providers for canary status changes
+    alerts:
+      - name: slack
+        severity: error
+        providerRef:
+          name: slack
+          namespace: ecommerce-prod
+
+  # Progressive delivery status conditions
+  progressDeadlineSeconds: 600
+
+  # Skip analysis on the first revision (initial deployment)
+  skipAnalysis: false

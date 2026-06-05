@@ -1,0 +1,69 @@
+# vCluster Helm values for team-echo strong isolation
+syncer:
+  extraArgs:
+    - --tls-san=team-echo.team-echo-vcluster.svc.cluster.local
+
+# Resource limits for the vCluster control plane
+resources:
+  limits:
+    cpu: "1"
+    memory: 1Gi
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+# What resources to sync from virtual to host cluster
+sync:
+  nodes:
+    enabled: true
+    syncAllNodes: true
+  persistentvolumes:
+    enabled: true
+  ingresses:
+    enabled: true
+  configmaps:
+    all: true
+  secrets:
+    all: true
+
+# Isolation settings
+isolation:
+  enabled: true
+  namespace: team-echo-vcluster
+
+  # Resource quota for the vCluster namespace on the host
+  resourceQuota:
+    enabled: true
+    quota:
+      requests.cpu: "10"
+      requests.memory: 20Gi
+      limits.cpu: "20"
+      limits.memory: 40Gi
+      pods: "100"
+      services: "30"
+      persistentvolumeclaims: "20"
+
+  # Limit range for pods inside the vCluster
+  limitRange:
+    enabled: true
+    default:
+      cpu: 250m
+      memory: 256Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+
+  # Network policy to isolate vCluster traffic
+  networkPolicy:
+    enabled: true
+
+# Storage settings
+storage:
+  persistence: true
+  size: 5Gi
+
+# Use k3s as the virtual cluster distribution
+vcluster:
+  image: rancher/k3s:v1.28.2-k3s1
+  extraArgs:
+    - --disable=traefik,servicelb,metrics-server,local-storage

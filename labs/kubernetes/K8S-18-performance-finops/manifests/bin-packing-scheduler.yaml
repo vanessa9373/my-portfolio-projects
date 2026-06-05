@@ -1,0 +1,161 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bin-packing-scheduler-config
+  namespace: kube-system
+data:
+  scheduler-config.yaml: |
+    apiVersion: kubescheduler.config.k8s.io/v1
+    kind: KubeSchedulerConfiguration
+    leaderElection:
+      leaderElect: true
+      resourceNamespace: kube-system
+      resourceName: bin-packing-scheduler
+    profiles:
+      # Bin-packing profile: MostAllocated strategy
+      # Packs pods onto the fewest nodes possible
+      - schedulerName: bin-packing-scheduler
+        plugins:
+          score:
+            enabled:
+              - name: NodeResourcesFit
+                weight: 3
+              - name: TaintToleration
+                weight: 1
+              - name: NodeAffinity
+                weight: 1
+              - name: PodTopologySpread
+                weight: 1
+            disabled:
+              - name: NodeResourcesBalancedAllocation
+          preScore:
+            enabled:
+              - name: PodTopologySpread
+        pluginConfig:
+          - name: NodeResourcesFit
+            args:
+              scoringStrategy:
+                type: MostAllocated
+                resources:
+                  - name: cpu
+                    weight: 1
+                  - name: memory
+                    weight: 1
+          - name: PodTopologySpread
+            args:
+              defaultingType: List
+              defaultConstraints:
+                - maxSkew: 3
+                  topologyKey: kubernetes.io/hostname
+                  whenUnsatisfiable: ScheduleAnyway
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bin-packing-scheduler
+  namespace: kube-system
+  labels:
+    component: bin-packing-scheduler
+    tier: control-plane
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: bin-packing-scheduler
+  template:
+    metadata:
+      labels:
+        component: bin-packing-scheduler
+        tier: control-plane
+    spec:
+      serviceAccountName: bin-packing-scheduler
+      priorityClassName: system-cluster-critical
+      containers:
+        - name: scheduler
+          image: registry.k8s.io/kube-scheduler:v1.29.0
+          command:
+            - kube-scheduler
+            - --config=/etc/kubernetes/scheduler-config.yaml
+            - --leader-elect=true
+            - --leader-elect-resource-name=bin-packing-scheduler
+          volumeMounts:
+            - name: config
+              mountPath: /etc/kubernetes/scheduler-config.yaml
+              subPath: scheduler-config.yaml
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 10259
+              scheme: HTTPS
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: bin-packing-scheduler-config
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: Exists
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bin-packing-scheduler
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: bin-packing-scheduler
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "namespaces", "configmaps", "endpoints", "events"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods/binding", "pods/status"]
+    verbs: ["create", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses", "csinodes", "csidrivers", "csistoragecapacities"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update"]
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["create", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: bin-packing-scheduler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: bin-packing-scheduler
+subjects:
+  - kind: ServiceAccount
+    name: bin-packing-scheduler
+    namespace: kube-system

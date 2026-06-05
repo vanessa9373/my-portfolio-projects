@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: report-generator
+  namespace: k8s-batch
+  labels:
+    app: report-generator
+    type: parallel
+    lab: k8s-04
+spec:
+  completions: 5                     # Total number of successful completions needed
+  parallelism: 3                     # Run up to 3 pods concurrently
+  backoffLimit: 6                    # Retry failed pods up to 6 times
+  activeDeadlineSeconds: 300         # 5-minute deadline for the entire job
+  ttlSecondsAfterFinished: 1800     # Cleanup after 30 minutes
+
+  template:
+    metadata:
+      labels:
+        app: report-generator
+        type: parallel
+    spec:
+      containers:
+        - name: reporter
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              REPORT_ID=$(echo $RANDOM | md5sum | head -c 8)
+              echo "============================================"
+              echo "  Report Generator — ID: ${REPORT_ID}"
+              echo "  Hostname: $(hostname)"
+              echo "  Started: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              echo "============================================"
+              echo ""
+              echo "[1/3] Querying data warehouse..."
+              sleep $(shuf -i 2-5 -n 1)  # Random 2-5 second delay (simulate query)
+              echo "       Retrieved 10,000 records."
+              echo ""
+              echo "[2/3] Generating report..."
+              sleep $(shuf -i 1-3 -n 1)  # Random 1-3 second delay
+              echo "       Report: monthly-sales-${REPORT_ID}.pdf"
+              echo ""
+              echo "[3/3] Uploading to S3..."
+              sleep 1
+              echo "       Uploaded to s3://reports/monthly-sales-${REPORT_ID}.pdf"
+              echo ""
+              echo "Report ${REPORT_ID} completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+      restartPolicy: Never

@@ -1,0 +1,85 @@
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+  # Encrypt Secrets
+  - resources:
+      - secrets
+    providers:
+      # AES-CBC encryption (primary — used for writing)
+      - aescbc:
+          keys:
+            # Active key (newest) — used for encrypting new data
+            - name: key-2025-q1
+              secret: Y2hhbmdlLXRoaXMtdG8tYS1yZWFsLTMyLWJ5dGUta2V5
+            # Previous key — kept for decrypting old data during rotation
+            - name: key-2024-q4
+              secret: cHJldmlvdXMtcXVhcnRlci1rZXktZm9yLXJvdGF0aW9u
+      # Identity provider (fallback — reads unencrypted data)
+      - identity: {}
+
+  # Encrypt ConfigMaps
+  - resources:
+      - configmaps
+    providers:
+      - aescbc:
+          keys:
+            - name: key-2025-q1
+              secret: Y2hhbmdlLXRoaXMtdG8tYS1yZWFsLTMyLWJ5dGUta2V5
+      - identity: {}
+
+  # Encrypt Service Account Tokens
+  - resources:
+      - serviceaccounts/token
+    providers:
+      - aescbc:
+          keys:
+            - name: key-2025-q1
+              secret: Y2hhbmdlLXRoaXMtdG8tYS1yZWFsLTMyLWJ5dGUta2V5
+      - identity: {}
+
+# =============================================================
+# IMPORTANT NOTES:
+# =============================================================
+#
+# 1. Generate real encryption keys:
+#    head -c 32 /dev/urandom | base64
+#
+# 2. Place this file on the control plane node:
+#    sudo cp etcd-encryption-config.yaml /etc/kubernetes/encryption-config.yaml
+#    sudo chmod 600 /etc/kubernetes/encryption-config.yaml
+#
+# 3. Add to kube-apiserver static pod manifest:
+#    spec:
+#      containers:
+#      - command:
+#        - kube-apiserver
+#        - --encryption-provider-config=/etc/kubernetes/encryption-config.yaml
+#        volumeMounts:
+#        - name: encryption-config
+#          mountPath: /etc/kubernetes/encryption-config.yaml
+#          readOnly: true
+#      volumes:
+#      - name: encryption-config
+#        hostPath:
+#          path: /etc/kubernetes/encryption-config.yaml
+#          type: File
+#
+# 4. After enabling, re-encrypt all existing secrets:
+#    kubectl get secrets --all-namespaces -o json | kubectl replace -f -
+#
+# 5. Key rotation procedure:
+#    a. Generate new key: head -c 32 /dev/urandom | base64
+#    b. Add new key as FIRST entry in the keys list
+#    c. Restart kube-apiserver
+#    d. Re-encrypt all secrets: kubectl get secrets -A -o json | kubectl replace -f -
+#    e. Remove old key from config
+#    f. Restart kube-apiserver again
+#
+# 6. Verify encryption is working:
+#    kubectl -n kube-system exec etcd-control-plane -- etcdctl \
+#      --endpoints=https://127.0.0.1:2379 \
+#      --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+#      --cert=/etc/kubernetes/pki/etcd/server.crt \
+#      --key=/etc/kubernetes/pki/etcd/server.key \
+#      get /registry/secrets/default/test-secret | hexdump -C
+#    # Output should show "k8s:enc:aescbc:v1:key-2025-q1" prefix

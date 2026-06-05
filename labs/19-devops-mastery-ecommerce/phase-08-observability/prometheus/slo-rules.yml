@@ -1,0 +1,67 @@
+groups:
+  - name: slo-rules
+    interval: 30s
+    rules:
+      # API Availability SLI (ratio of successful requests)
+      - record: slo:api_availability:ratio_rate5m
+        expr: |
+          sum(rate(http_requests_total{status!~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total[5m]))
+
+      - record: slo:api_availability:ratio_rate1h
+        expr: |
+          sum(rate(http_requests_total{status!~"5.."}[1h]))
+          /
+          sum(rate(http_requests_total[1h]))
+
+      # API Latency SLI (ratio of requests under 200ms)
+      - record: slo:api_latency:ratio_rate5m
+        expr: |
+          sum(rate(http_request_duration_seconds_bucket{le="0.2"}[5m]))
+          /
+          sum(rate(http_request_duration_seconds_count[5m]))
+
+      # Error Budget Remaining
+      - record: slo:error_budget:remaining
+        expr: |
+          1 - (
+            (1 - slo:api_availability:ratio_rate1h)
+            /
+            (1 - 0.9995)
+          )
+
+  - name: slo-alerts
+    rules:
+      - alert: SLOBurnRateHigh
+        expr: |
+          slo:api_availability:ratio_rate5m < 0.999
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "API SLO burn rate is too high"
+          description: "5-minute availability is {{ $value | humanizePercentage }}, SLO target is 99.95%"
+          runbook_url: "https://wiki.example.com/runbooks/slo-burn-rate"
+
+      - alert: ErrorBudgetExhausted
+        expr: |
+          slo:error_budget:remaining < 0.1
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Error budget is nearly exhausted"
+          description: "Only {{ $value | humanizePercentage }} of error budget remaining"
+
+      - alert: HighLatency
+        expr: |
+          slo:api_latency:ratio_rate5m < 0.95
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API latency SLO at risk"
+          description: "Only {{ $value | humanizePercentage }} of requests are under 200ms"

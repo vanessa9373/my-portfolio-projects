@@ -1,0 +1,96 @@
+apiVersion: kubescheduler.config.k8s.io/v1
+kind: KubeSchedulerConfiguration
+leaderElection:
+  leaderElect: true
+  resourceNamespace: kube-system
+  resourceName: kube-scheduler
+clientConnection:
+  kubeconfig: /etc/kubernetes/scheduler.conf
+profiles:
+  # Default profile — standard scheduling behavior
+  - schedulerName: default-scheduler
+    plugins:
+      score:
+        enabled:
+          - name: NodeResourcesBalancedAllocation
+            weight: 1
+          - name: NodeResourcesFit
+            weight: 1
+          - name: InterPodAffinity
+            weight: 1
+          - name: NodeAffinity
+            weight: 1
+          - name: TaintToleration
+            weight: 3
+        disabled:
+          - name: NodeResourcesLeastAllocated
+    pluginConfig:
+      - name: NodeResourcesFit
+        args:
+          scoringStrategy:
+            type: LeastAllocated
+            resources:
+              - name: cpu
+                weight: 1
+              - name: memory
+                weight: 1
+
+  # High-priority profile — spreads pods across nodes for HA
+  - schedulerName: high-priority-scheduler
+    plugins:
+      score:
+        enabled:
+          - name: NodeResourcesFit
+            weight: 2
+          - name: InterPodAffinity
+            weight: 2
+          - name: NodeAffinity
+            weight: 1
+          - name: TaintToleration
+            weight: 3
+          - name: PodTopologySpread
+            weight: 3
+      filter:
+        enabled:
+          - name: NodeResourcesFit
+          - name: NodePorts
+          - name: NodeAffinity
+          - name: TaintToleration
+          - name: PodTopologySpread
+    pluginConfig:
+      - name: NodeResourcesFit
+        args:
+          scoringStrategy:
+            type: LeastAllocated
+            resources:
+              - name: cpu
+                weight: 2
+              - name: memory
+                weight: 1
+      - name: PodTopologySpread
+        args:
+          defaultingType: List
+          defaultConstraints:
+            - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: ScheduleAnyway
+
+  # Bin-packing profile — packs pods tightly for cost optimization
+  - schedulerName: bin-packing-scheduler
+    plugins:
+      score:
+        enabled:
+          - name: NodeResourcesFit
+            weight: 3
+          - name: TaintToleration
+            weight: 1
+    pluginConfig:
+      - name: NodeResourcesFit
+        args:
+          scoringStrategy:
+            type: MostAllocated
+            resources:
+              - name: cpu
+                weight: 1
+              - name: memory
+                weight: 1

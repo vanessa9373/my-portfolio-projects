@@ -1,0 +1,86 @@
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: platform-workloads
+  namespace: fleet-default
+spec:
+  # Git repository containing Kubernetes manifests
+  repo: https://github.com/your-org/fleet-workloads.git
+  branch: main
+  revision: ""
+
+  # Poll interval for checking Git changes
+  pollingInterval: 60s
+
+  # Paths within the repo to deploy
+  paths:
+    - /manifests/common
+    - /manifests/monitoring
+    - /manifests/security-policies
+
+  # Target all production clusters
+  targets:
+    - name: production
+      clusterGroup: production
+      clusterSelector:
+        matchLabels:
+          environment: production
+    - name: staging
+      clusterGroup: staging
+      clusterSelector:
+        matchLabels:
+          environment: staging
+    - name: development
+      clusterGroup: development
+      clusterSelector:
+        matchLabels:
+          environment: development
+
+  # Service account for deployment
+  serviceAccount: fleet-deployer
+
+  # Helm options (if deploying Helm charts from the repo)
+  helmSecretName: ""
+
+  # Force sync on drift
+  correctDrift:
+    enabled: true
+    force: false
+    keepFailHistory: true
+---
+# Production-only workloads (separate GitRepo for production-specific configs)
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: production-configs
+  namespace: fleet-default
+spec:
+  repo: https://github.com/your-org/fleet-workloads.git
+  branch: main
+  paths:
+    - /manifests/production
+  targets:
+    - name: prod-clusters
+      clusterGroup: production
+  correctDrift:
+    enabled: true
+    force: false
+---
+# Edge-specific workloads (lightweight configs for edge clusters)
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: edge-workloads
+  namespace: fleet-default
+spec:
+  repo: https://github.com/your-org/fleet-workloads.git
+  branch: main
+  paths:
+    - /manifests/edge
+  targets:
+    - name: edge-clusters
+      clusterSelector:
+        matchLabels:
+          environment: edge
+  correctDrift:
+    enabled: true

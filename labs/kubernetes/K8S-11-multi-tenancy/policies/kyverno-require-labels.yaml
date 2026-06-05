@@ -1,0 +1,60 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-labels
+  annotations:
+    policies.kyverno.io/title: Require Labels
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      All pods in tenant namespaces must have 'team' and 'app' labels
+      for cost attribution and operational visibility.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-team-label
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaceSelector:
+                matchLabels:
+                  tenant: "true"
+      validate:
+        message: "The label 'team' is required on all pods in tenant namespaces."
+        pattern:
+          metadata:
+            labels:
+              team: "?*"
+    - name: require-app-label
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaceSelector:
+                matchLabels:
+                  tenant: "true"
+      validate:
+        message: "The label 'app' is required on all pods in tenant namespaces."
+        pattern:
+          metadata:
+            labels:
+              app: "?*"
+    - name: require-cost-center-annotation
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaceSelector:
+                matchLabels:
+                  tenant: "true"
+      validate:
+        message: "The annotation 'cost-center' is recommended. Add metadata.annotations.cost-center."
+        pattern:
+          metadata:
+            annotations:
+              cost-center: "?*"

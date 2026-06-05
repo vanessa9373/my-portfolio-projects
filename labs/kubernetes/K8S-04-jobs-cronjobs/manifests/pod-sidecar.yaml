@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-with-sidecar
+  namespace: k8s-batch
+  labels:
+    app: app-with-sidecar
+    lab: k8s-04
+spec:
+  containers:
+    # Main container: application that writes logs to a file
+    - name: app
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          echo "Application started. Writing logs to /var/log/app/app.log"
+          i=0
+          while true; do
+            i=$((i+1))
+            TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            LEVEL=$(shuf -e INFO INFO INFO WARN ERROR -n 1)
+            case $LEVEL in
+              INFO)  MSG="Request processed successfully (request_id=${i})" ;;
+              WARN)  MSG="Slow query detected: 1.5s (threshold: 1.0s)" ;;
+              ERROR) MSG="Connection timeout to upstream service" ;;
+            esac
+            echo "${TIMESTAMP} [${LEVEL}] ${MSG}" >> /var/log/app/app.log
+            echo "${TIMESTAMP} [${LEVEL}] ${MSG}"
+            sleep 5
+          done
+      volumeMounts:
+        - name: log-volume
+          mountPath: /var/log/app
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+
+    # Sidecar container: reads logs from shared volume and "ships" them
+    - name: log-shipper
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          echo "Log shipper sidecar started."
+          echo "Tailing /var/log/app/app.log and shipping to central logging..."
+          echo ""
+          # Wait for the log file to be created by the main container
+          while [ ! -f /var/log/app/app.log ]; do
+            echo "Waiting for log file..."
+            sleep 1
+          done
+          # Tail the log file (simulating shipping to ELK/Fluentd/Loki)
+          tail -f /var/log/app/app.log | while read line; do
+            echo "[SHIPPED] ${line}"
+          done
+      volumeMounts:
+        - name: log-volume
+          mountPath: /var/log/app
+          readOnly: true         # Sidecar only reads, doesn't write
+      resources:
+        requests:
+          cpu: 25m
+          memory: 32Mi
+        limits:
+          cpu: 50m
+          memory: 64Mi
+
+  # Shared volume between main container and sidecar
+  volumes:
+    - name: log-volume
+      emptyDir:
+        sizeLimit: 100Mi        # Prevent unbounded log growth
+
+  restartPolicy: Always
+  terminationGracePeriodSeconds: 15

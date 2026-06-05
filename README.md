@@ -60,6 +60,34 @@ Full CRUD REST API on serverless architecture with CI/CD.
 
 ---
 
+## Labs
+
+19 hands-on cloud infrastructure labs covering DevOps, Kubernetes, SRE, security, and cost optimization.
+
+| # | Lab | Focus |
+|---|-----|-------|
+| 01 | [cloud-migration](./labs/01-cloud-migration) | 6R strategies, workload assessment, TCO |
+| 02 | [multi-cloud-architecture](./labs/02-multi-cloud-architecture) | AWS + Azure + GCP cross-cloud design |
+| 03 | [terraform-modules](./labs/03-terraform-modules) | Reusable IaC module patterns |
+| 04 | [iac-terraform-ansible](./labs/04-iac-terraform-ansible) | Terraform + Ansible provisioning |
+| 05 | [cicd-kubernetes](./labs/05-cicd-kubernetes) | CI/CD pipelines with Kubernetes |
+| 06 | [cicd-gitops](./labs/06-cicd-gitops) | GitOps workflow with GitHub Actions |
+| 07 | [cicd-argocd-rollouts](./labs/07-cicd-argocd-rollouts) | ArgoCD progressive delivery |
+| 08 | [kubernetes-observability](./labs/08-kubernetes-observability) | Prometheus + Grafana on K8s |
+| 09 | [sre-observability-slo](./labs/09-sre-observability-slo) | SLOs, SLIs, error budgets |
+| 10 | [logging-tracing-pipeline](./labs/10-logging-tracing-pipeline) | ELK Stack + distributed tracing |
+| 11 | [incident-response-slo](./labs/11-incident-response-slo) | SLO-driven incident response |
+| 12 | [incident-response-postmortem](./labs/12-incident-response-postmortem) | Blameless postmortem process |
+| 13 | [chaos-engineering-aws](./labs/13-chaos-engineering-aws) | AWS Fault Injection Simulator |
+| 14 | [chaos-engineering-litmus](./labs/14-chaos-engineering-litmus) | LitmusChaos on Kubernetes |
+| 15 | [security-compliance](./labs/15-security-compliance) | IAM, SCPs, GuardDuty, Security Hub |
+| 16 | [kubernetes-security](./labs/16-kubernetes-security) | RBAC, Pod Security, network policies |
+| 17 | [serverless-data-pipeline](./labs/17-serverless-data-pipeline) | Lambda + S3 + DynamoDB pipeline |
+| 18 | [cloud-cost-optimization](./labs/18-cloud-cost-optimization) | FinOps, right-sizing, savings plans |
+| 19 | [devops-mastery-ecommerce](./labs/19-devops-mastery-ecommerce) | End-to-end DevOps on EKS |
+
+---
+
 ## Contact
 
 | | |

@@ -1,0 +1,56 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequirenonroot
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRequireNonRoot
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            exemptImages:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequirenonroot
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          not is_exempt(container.image)
+          has_root_access(container)
+          msg := sprintf("Container '%v' must not run as root", [container.name])
+        }
+
+        has_root_access(container) {
+          not container.securityContext.runAsNonRoot
+        }
+
+        has_root_access(container) {
+          container.securityContext.runAsUser == 0
+        }
+
+        is_exempt(image) {
+          exempt := input.parameters.exemptImages[_]
+          glob.match(exempt, [], image)
+        }
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequireNonRoot
+metadata:
+  name: require-non-root-containers
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces: ["production", "staging"]
+  parameters:
+    exemptImages:
+      - "istio/proxyv2:*"
+      - "docker.io/istio/proxyv2:*"

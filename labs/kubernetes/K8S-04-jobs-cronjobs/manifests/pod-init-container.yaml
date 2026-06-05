@@ -1,0 +1,124 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-with-init
+  namespace: k8s-batch
+  labels:
+    app: app-with-init
+    lab: k8s-04
+spec:
+  # Init containers run sequentially, in order, before main containers start
+  # Each must complete successfully (exit 0) before the next one runs
+  initContainers:
+    # Init Container 1: Wait for database to be reachable
+    - name: wait-for-db
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for database to be reachable..."
+          # In production, this would check an actual database service
+          # nslookup postgres.k8s-batch.svc.cluster.local
+          # For demo purposes, simulate a delay then succeed
+          RETRIES=0
+          MAX_RETRIES=10
+          until [ $RETRIES -ge $MAX_RETRIES ]; do
+            echo "Attempt $((RETRIES+1))/${MAX_RETRIES}: Checking database..."
+            # Simulate check (in production: nc -z postgres 5432)
+            if [ $RETRIES -ge 2 ]; then
+              echo "Database is reachable!"
+              exit 0
+            fi
+            RETRIES=$((RETRIES+1))
+            sleep 2
+          done
+          echo "ERROR: Database not reachable after ${MAX_RETRIES} attempts"
+          exit 1
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 50m
+          memory: 32Mi
+
+    # Init Container 2: Run database schema check
+    - name: check-schema
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          echo "Checking database schema version..."
+          sleep 1
+          echo "Schema version: v2.4.0 (compatible)"
+          echo "Schema check passed."
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 50m
+          memory: 32Mi
+
+    # Init Container 3: Download configuration from remote source
+    - name: fetch-config
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          echo "Fetching application configuration..."
+          # Write config to shared volume
+          echo '{"db_pool_size": 10, "cache_ttl": 300, "log_level": "info"}' > /config/app-config.json
+          echo "Configuration written to /config/app-config.json"
+      volumeMounts:
+        - name: config-volume
+          mountPath: /config
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 50m
+          memory: 32Mi
+
+  # Main container starts only after ALL init containers complete successfully
+  containers:
+    - name: app
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          echo "============================================"
+          echo "  Main Application Started"
+          echo "  All init containers completed successfully"
+          echo "============================================"
+          echo ""
+          echo "Loading config from init container..."
+          cat /config/app-config.json
+          echo ""
+          echo "Application running..."
+          while true; do
+            echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) - Application heartbeat"
+            sleep 30
+          done
+      volumeMounts:
+        - name: config-volume
+          mountPath: /config
+          readOnly: true
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+
+  volumes:
+    - name: config-volume
+      emptyDir: {}            # Shared between init and main containers
+
+  restartPolicy: Always

@@ -1,0 +1,38 @@
+# Critical system workloads -- highest priority, last to be evicted
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: critical-system
+value: 1000000
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: >
+  Reserved for critical system components (ingress controllers,
+  monitoring, DNS). These pods can preempt lower-priority pods
+  and are the last to be evicted under resource pressure.
+---
+# Standard application workloads -- default priority
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: standard-workload
+value: 500000
+globalDefault: true
+preemptionPolicy: PreemptLowerPriority
+description: >
+  Default priority for standard application workloads.
+  These pods can preempt background workloads but will be
+  evicted before critical-system pods under resource pressure.
+---
+# Background/batch workloads -- lowest priority, first to be evicted
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: background-batch
+value: 100000
+globalDefault: false
+preemptionPolicy: Never
+description: >
+  For background batch jobs, data processing, and non-urgent workloads.
+  These pods do NOT preempt other pods (preemptionPolicy: Never)
+  and are the first to be evicted under resource pressure.

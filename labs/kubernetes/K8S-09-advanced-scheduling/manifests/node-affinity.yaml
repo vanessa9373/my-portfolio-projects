@@ -1,0 +1,94 @@
+# Example 1: nodeSelector -- simplest form of node selection
+apiVersion: v1
+kind: Pod
+metadata:
+  name: node-selector-demo
+  labels:
+    app: scheduling-demo
+    demo: node-selector
+spec:
+  # nodeSelector: all labels must match (AND logic)
+  nodeSelector:
+    disk: ssd
+    environment: production
+  containers:
+    - name: app
+      image: nginx:1.25-alpine
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+---
+# Example 2: Node Affinity -- required (hard constraint)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: node-affinity-required
+  labels:
+    app: scheduling-demo
+    demo: node-affinity-required
+spec:
+  affinity:
+    nodeAffinity:
+      # Hard requirement: pod WILL NOT schedule if no matching node exists
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          # OR logic: any one of these terms can match
+          - matchExpressions:
+              # AND logic within a term: ALL expressions must match
+              - key: topology.kubernetes.io/zone
+                operator: In
+                values:
+                  - us-east-1a
+                  - us-east-1b
+              - key: node.kubernetes.io/instance-type
+                operator: In
+                values:
+                  - m5.xlarge
+                  - m5.2xlarge
+                  - c5.xlarge
+                  - c5.2xlarge
+  containers:
+    - name: app
+      image: nginx:1.25-alpine
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+---
+# Example 3: Node Affinity -- preferred (soft constraint with weight)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: node-affinity-preferred
+  labels:
+    app: scheduling-demo
+    demo: node-affinity-preferred
+spec:
+  affinity:
+    nodeAffinity:
+      # Soft preference: scheduler TRIES to honor but will place elsewhere if needed
+      preferredDuringSchedulingIgnoredDuringExecution:
+        # Weight 80: strongly prefer SSD nodes
+        - weight: 80
+          preference:
+            matchExpressions:
+              - key: disk
+                operator: In
+                values:
+                  - ssd
+        # Weight 20: mildly prefer zone us-east-1a
+        - weight: 20
+          preference:
+            matchExpressions:
+              - key: topology.kubernetes.io/zone
+                operator: In
+                values:
+                  - us-east-1a
+  containers:
+    - name: app
+      image: nginx:1.25-alpine
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi

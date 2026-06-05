@@ -1,0 +1,118 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: databases.platform.example.com
+spec:
+  group: platform.example.com
+  names:
+    kind: Database
+    plural: databases
+    shortNames:
+      - db
+    categories:
+      - platform
+      - infrastructure
+  claimNames:
+    kind: DatabaseClaim
+    plural: databaseclaims
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              description: "Desired state of the Database resource"
+              properties:
+                parameters:
+                  type: object
+                  description: "Database configuration parameters"
+                  properties:
+                    engine:
+                      type: string
+                      description: "Database engine type"
+                      enum:
+                        - postgres
+                        - mysql
+                      default: postgres
+                    engineVersion:
+                      type: string
+                      description: "Database engine version"
+                      default: "15.4"
+                    size:
+                      type: string
+                      description: "Database instance size (small, medium, large)"
+                      enum:
+                        - small
+                        - medium
+                        - large
+                      default: small
+                    storageGB:
+                      type: integer
+                      description: "Storage size in gigabytes"
+                      minimum: 20
+                      maximum: 1000
+                      default: 50
+                    team:
+                      type: string
+                      description: "Owning team name for cost allocation"
+                    environment:
+                      type: string
+                      description: "Target environment"
+                      enum:
+                        - dev
+                        - staging
+                        - production
+                      default: dev
+                    highAvailability:
+                      type: boolean
+                      description: "Enable Multi-AZ deployment"
+                      default: false
+                    backupRetentionDays:
+                      type: integer
+                      description: "Number of days to retain automated backups"
+                      minimum: 1
+                      maximum: 35
+                      default: 7
+                  required:
+                    - team
+                    - environment
+              required:
+                - parameters
+            status:
+              type: object
+              properties:
+                endpoint:
+                  type: string
+                  description: "Database connection endpoint"
+                port:
+                  type: integer
+                  description: "Database connection port"
+                status:
+                  type: string
+                  description: "Current status of the database"
+                connectionSecretName:
+                  type: string
+                  description: "Name of the secret containing connection details"
+      additionalPrinterColumns:
+        - name: Engine
+          type: string
+          jsonPath: ".spec.parameters.engine"
+        - name: Size
+          type: string
+          jsonPath: ".spec.parameters.size"
+        - name: Team
+          type: string
+          jsonPath: ".spec.parameters.team"
+        - name: Status
+          type: string
+          jsonPath: ".status.status"
+        - name: Endpoint
+          type: string
+          jsonPath: ".status.endpoint"
+        - name: Age
+          type: date
+          jsonPath: ".metadata.creationTimestamp"

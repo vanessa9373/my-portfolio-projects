@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: k8s-storage
+  labels:
+    lab: k8s-02
+    purpose: persistent-storage
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: static-pvc
+  namespace: k8s-storage
+  labels:
+    app: storage-demo
+    lab: k8s-02
+spec:
+  accessModes:
+    - ReadWriteOnce          # Must match PV's access mode
+  resources:
+    requests:
+      storage: 10Gi         # Must be <= PV's capacity
+  storageClassName: manual   # Must match PV's storageClassName
+  # Kubernetes finds a PV that matches:
+  # 1. storageClassName
+  # 2. accessModes
+  # 3. capacity >= requested

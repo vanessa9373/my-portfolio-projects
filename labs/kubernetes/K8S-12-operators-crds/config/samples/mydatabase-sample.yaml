@@ -1,0 +1,63 @@
+# PostgreSQL database instance
+apiVersion: database.example.com/v1alpha1
+kind: MyDatabase
+metadata:
+  name: my-postgres
+  labels:
+    app: my-postgres
+    team: platform
+    environment: production
+spec:
+  engine: postgres
+  version: "15"
+  storageSize: 10Gi
+  replicas: 2
+  storageClass: gp3
+  resources:
+    cpuRequest: "500m"
+    cpuLimit: "2"
+    memoryRequest: "512Mi"
+    memoryLimit: "2Gi"
+  backupEnabled: true
+---
+# MySQL database instance
+apiVersion: database.example.com/v1alpha1
+kind: MyDatabase
+metadata:
+  name: my-mysql
+  labels:
+    app: my-mysql
+    team: backend
+    environment: staging
+spec:
+  engine: mysql
+  version: "8.0"
+  storageSize: 5Gi
+  replicas: 1
+  resources:
+    cpuRequest: "250m"
+    cpuLimit: "1"
+    memoryRequest: "256Mi"
+    memoryLimit: "1Gi"
+  backupEnabled: false
+---
+# Redis cache instance
+apiVersion: database.example.com/v1alpha1
+kind: MyDatabase
+metadata:
+  name: my-redis
+  labels:
+    app: my-redis
+    team: backend
+    environment: production
+spec:
+  engine: redis
+  version: "7"
+  storageSize: 2Gi
+  replicas: 3
+  resources:
+    cpuRequest: "100m"
+    cpuLimit: "500m"
+    memoryRequest: "128Mi"
+    memoryLimit: "512Mi"
+  backupEnabled: false

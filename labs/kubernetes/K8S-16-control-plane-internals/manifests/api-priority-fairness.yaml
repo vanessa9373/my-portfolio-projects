@@ -1,0 +1,167 @@
+apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
+kind: PriorityLevelConfiguration
+metadata:
+  name: platform-critical
+spec:
+  type: Limited
+  limited:
+    nominalConcurrencyShares: 40
+    limitResponse:
+      type: Queue
+      queuing:
+        queues: 64
+        handSize: 6
+        queueLengthLimit: 50
+---
+apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
+kind: PriorityLevelConfiguration
+metadata:
+  name: operator-workloads
+spec:
+  type: Limited
+  limited:
+    nominalConcurrencyShares: 25
+    limitResponse:
+      type: Queue
+      queuing:
+        queues: 32
+        handSize: 4
+        queueLengthLimit: 50
+---
+apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
+kind: PriorityLevelConfiguration
+metadata:
+  name: monitoring-tools
+spec:
+  type: Limited
+  limited:
+    nominalConcurrencyShares: 10
+    limitResponse:
+      type: Queue
+      queuing:
+        queues: 16
+        handSize: 4
+        queueLengthLimit: 25
+---
+apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
+kind: PriorityLevelConfiguration
+metadata:
+  name: batch-workloads
+spec:
+  type: Limited
+  limited:
+    nominalConcurrencyShares: 5
+    limitResponse:
+      type: Queue
+      queuing:
+        queues: 8
+        handSize: 2
+        queueLengthLimit: 15
+---
+# FlowSchema: Route platform controllers to high priority
+apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
+kind: FlowSchema
+metadata:
+  name: platform-controllers
+spec:
+  priorityLevelConfiguration:
+    name: platform-critical
+  matchingPrecedence: 500
+  distinguisherMethod:
+    type: ByUser
+  rules:
+    - subjects:
+        - kind: ServiceAccount
+          serviceAccount:
+            name: argocd-application-controller
+            namespace: argocd
+        - kind: ServiceAccount
+          serviceAccount:
+            name: crossplane
+            namespace: crossplane-system
+      resourceRules:
+        - verbs: ["*"]
+          apiGroups: ["*"]
+          resources: ["*"]
+          namespaces: ["*"]
+          clusterScope: true
+---
+# FlowSchema: Route operators to medium priority
+apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
+kind: FlowSchema
+metadata:
+  name: operator-workloads
+spec:
+  priorityLevelConfiguration:
+    name: operator-workloads
+  matchingPrecedence: 600
+  distinguisherMethod:
+    type: ByUser
+  rules:
+    - subjects:
+        - kind: ServiceAccount
+          serviceAccount:
+            name: "*"
+            namespace: operators
+      resourceRules:
+        - verbs: ["*"]
+          apiGroups: ["*"]
+          resources: ["*"]
+          namespaces: ["*"]
+          clusterScope: true
+---
+# FlowSchema: Route monitoring to lower priority
+apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
+kind: FlowSchema
+metadata:
+  name: monitoring-reads
+spec:
+  priorityLevelConfiguration:
+    name: monitoring-tools
+  matchingPrecedence: 700
+  distinguisherMethod:
+    type: ByUser
+  rules:
+    - subjects:
+        - kind: ServiceAccount
+          serviceAccount:
+            name: prometheus-server
+            namespace: monitoring
+        - kind: ServiceAccount
+          serviceAccount:
+            name: grafana
+            namespace: monitoring
+      resourceRules:
+        - verbs: ["get", "list", "watch"]
+          apiGroups: ["*"]
+          resources: ["*"]
+          namespaces: ["*"]
+          clusterScope: true
+---
+# FlowSchema: Route batch/CI workloads to lowest priority
+apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
+kind: FlowSchema
+metadata:
+  name: batch-ci-workloads
+spec:
+  priorityLevelConfiguration:
+    name: batch-workloads
+  matchingPrecedence: 800
+  distinguisherMethod:
+    type: ByNamespace
+  rules:
+    - subjects:
+        - kind: ServiceAccount
+          serviceAccount:
+            name: "*"
+            namespace: ci-cd
+        - kind: ServiceAccount
+          serviceAccount:
+            name: "*"
+            namespace: batch-jobs
+      resourceRules:
+        - verbs: ["*"]
+          apiGroups: ["*"]
+          resources: ["*"]
+          namespaces: ["*"]
+          clusterScope: true

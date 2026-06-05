@@ -1,0 +1,16 @@
+apiVersion: v2
+name: ecommerce-service
+description: A Helm chart for deploying e-commerce microservices on Kubernetes
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - ecommerce
+  - microservice
+  - nodejs
+home: https://github.com/org/ecommerce-gitops
+sources:
+  - https://github.com/org/ecommerce-gitops
+maintainers:
+  - name: platform-team
+    email: platform@example.com

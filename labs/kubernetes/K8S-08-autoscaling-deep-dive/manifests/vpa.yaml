@@ -1,0 +1,61 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: myapp-vpa
+  labels:
+    app: myapp
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: myapp
+  # "Off" mode: VPA generates recommendations but does NOT
+  # automatically apply them or restart pods.
+  # Safe to use alongside HPA.
+  updatePolicy:
+    updateMode: "Off"
+  # Resource policy defines bounds for recommendations
+  resourcePolicy:
+    containerPolicies:
+      - containerName: myapp
+        # Minimum recommended values (VPA won't recommend below these)
+        minAllowed:
+          cpu: 50m
+          memory: 64Mi
+        # Maximum recommended values (VPA won't recommend above these)
+        maxAllowed:
+          cpu: "4"
+          memory: 4Gi
+        # Which resources VPA should recommend for
+        controlledResources:
+          - cpu
+          - memory
+        # "RequestsAndLimits" means VPA recommends both
+        controlledValues: RequestsAndLimits
+---
+# Worker VPA for the KEDA-managed worker deployment
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: worker-vpa
+  labels:
+    app: worker
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: worker
+        minAllowed:
+          cpu: 100m
+          memory: 128Mi
+        maxAllowed:
+          cpu: "2"
+          memory: 2Gi
+        controlledResources:
+          - cpu
+          - memory

@@ -1,0 +1,76 @@
+# Production environment overrides
+# Usage: helm upgrade --install myapp ./charts/myapp -f charts/myapp/values-prod.yaml
+
+replicaCount: 3
+
+image:
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+env:
+  LOG_LEVEL: "warn"
+  DB_PORT: "5432"
+  DB_NAME: "appdb"
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: myapp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: myapp-prod-tls
+      hosts:
+        - myapp.example.com
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 15
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - myapp
+          topologyKey: kubernetes.io/hostname
+
+postgresql:
+  enabled: true
+  auth:
+    username: appuser
+    existingSecret: "myapp-prod-db-secret"
+    database: appdb
+  primary:
+    persistence:
+      size: 50Gi
+      storageClass: gp3
+    resources:
+      requests:
+        cpu: "1"
+        memory: 1Gi
+      limits:
+        cpu: "2"
+        memory: 2Gi

@@ -1,0 +1,115 @@
+# Default values for myapp
+# This is the base configuration. Environment-specific overrides
+# are in values-dev.yaml, values-staging.yaml, values-prod.yaml
+
+replicaCount: 2
+
+image:
+  repository: myapp/web
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: myapp.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Liveness and readiness probes
+probes:
+  liveness:
+    path: /healthz
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 3
+  readiness:
+    path: /readyz
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+
+# Application environment variables
+env:
+  LOG_LEVEL: "info"
+  DB_PORT: "5432"
+  DB_NAME: "appdb"
+
+# Database migration hook configuration
+migration:
+  enabled: true
+  image:
+    repository: myapp/migrate
+    tag: "1.0.0"
+  command: ["./migrate", "-path", "/migrations", "-database", "$(DATABASE_URL)", "up"]
+
+# PostgreSQL sub-chart configuration
+postgresql:
+  enabled: true
+  auth:
+    username: appuser
+    password: ""
+    existingSecret: ""
+    database: appdb
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 512Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

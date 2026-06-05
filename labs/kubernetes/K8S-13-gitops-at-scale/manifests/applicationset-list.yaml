@@ -1,0 +1,58 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapp-environments
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - env: dev
+            cluster: https://kubernetes.default.svc
+            namespace: dev
+            overlayPath: overlays/dev
+            syncPolicy: automated
+          - env: staging
+            cluster: https://kubernetes.default.svc
+            namespace: staging
+            overlayPath: overlays/staging
+            syncPolicy: manual
+          - env: prod
+            cluster: https://prod-cluster.example.com
+            namespace: prod
+            overlayPath: overlays/prod
+            syncPolicy: manual
+  template:
+    metadata:
+      name: "myapp-{{env}}"
+      namespace: argocd
+      labels:
+        app: myapp
+        environment: "{{env}}"
+      annotations:
+        argocd-image-updater.argoproj.io/image-list: "myapp=123456789012.dkr.ecr.us-east-1.amazonaws.com/myapp"
+        argocd-image-updater.argoproj.io/myapp.update-strategy: semver
+        argocd-image-updater.argoproj.io/myapp.allow-tags: "regexp:^v\\d+\\.\\d+\\.\\d+$"
+        argocd-image-updater.argoproj.io/write-back-method: git
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/your-org/gitops-repo.git
+        targetRevision: main
+        path: "{{overlayPath}}"
+      destination:
+        server: "{{cluster}}"
+        namespace: "{{namespace}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - PruneLast=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

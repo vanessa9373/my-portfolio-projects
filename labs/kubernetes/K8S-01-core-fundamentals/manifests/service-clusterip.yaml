@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-app-internal
+  namespace: k8s-fundamentals
+  labels:
+    app: web-app
+    tier: frontend
+    lab: k8s-01
+spec:
+  type: ClusterIP
+  selector:
+    app: web-app
+    tier: frontend
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80           # Service port (what other pods connect to)
+      targetPort: http    # Pod port (named port from container)
+  # DNS: web-app-internal.k8s-fundamentals.svc.cluster.local

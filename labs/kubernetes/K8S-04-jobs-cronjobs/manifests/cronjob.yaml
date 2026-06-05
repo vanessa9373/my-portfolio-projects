@@ -1,0 +1,88 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: data-cleanup
+  namespace: k8s-batch
+  labels:
+    app: data-cleanup
+    type: scheduled
+    lab: k8s-04
+spec:
+  # Cron schedule: every 5 minutes
+  # ┌───────────── minute (0-59)
+  # │ ┌───────────── hour (0-23)
+  # │ │ ┌───────────── day of month (1-31)
+  # │ │ │ ┌───────────── month (1-12)
+  # │ │ │ │ ┌───────────── day of week (0-6, Sunday=0)
+  # │ │ │ │ │
+  schedule: "*/5 * * * *"
+
+  # Concurrency policy: what to do if previous run is still active
+  # Allow: run concurrently (default)
+  # Forbid: skip this run if previous is still active
+  # Replace: kill previous run and start new one
+  concurrencyPolicy: Forbid
+
+  # History limits: how many completed/failed Jobs to keep
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+
+  # Deadline: seconds after scheduled time to still start the Job
+  # If missed by more than this, it's skipped
+  startingDeadlineSeconds: 60
+
+  # Suspend: set to true to pause the CronJob without deleting it
+  suspend: false
+
+  jobTemplate:
+    metadata:
+      labels:
+        app: data-cleanup
+        type: scheduled
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 240     # 4-minute deadline per Job
+      ttlSecondsAfterFinished: 600  # Cleanup after 10 minutes
+      template:
+        metadata:
+          labels:
+            app: data-cleanup
+            type: scheduled
+        spec:
+          containers:
+            - name: cleanup
+              image: busybox:1.36
+              command:
+                - sh
+                - -c
+                - |
+                  echo "============================================"
+                  echo "  Scheduled Data Cleanup"
+                  echo "  Run: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+                  echo "============================================"
+                  echo ""
+                  echo "[1/4] Scanning for expired sessions..."
+                  sleep 2
+                  echo "       Found 47 expired sessions."
+                  echo ""
+                  echo "[2/4] Removing expired sessions..."
+                  sleep 1
+                  echo "       Removed 47 sessions."
+                  echo ""
+                  echo "[3/4] Purging old temp files (> 24 hours)..."
+                  sleep 1
+                  echo "       Purged 128 temp files (256 MB freed)."
+                  echo ""
+                  echo "[4/4] Compacting database tables..."
+                  sleep 2
+                  echo "       Compacted 3 tables, recovered 12 MB."
+                  echo ""
+                  echo "Cleanup completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+          restartPolicy: OnFailure    # Retry in-place (same pod)

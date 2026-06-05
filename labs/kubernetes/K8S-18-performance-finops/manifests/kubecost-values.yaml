@@ -1,0 +1,136 @@
+# Kubecost Helm values for cost visibility and optimization
+# Provides per-namespace, per-team, per-service cost allocation
+
+global:
+  # Use existing Prometheus if available
+  prometheus:
+    enabled: true
+    fqdn: http://prometheus-server.monitoring.svc.cluster.local:80
+
+  # Grafana dashboards
+  grafana:
+    enabled: true
+    proxy: false
+
+# Cost Analyzer configuration
+kubecostModel:
+  # AWS integration for accurate pricing
+  etlCloudAsset: true
+
+  # Allocation settings
+  allocation:
+    # Enable idle cost allocation (distribute unallocated costs)
+    idleCostEnabled: true
+    idleCostByNode: true
+
+    # Cost aggregation labels
+    allocationLabels:
+      - cost-center
+      - department
+      - team
+      - environment
+
+  # Savings recommendations
+  savings:
+    enabled: true
+    # Identify resources with <5% utilization
+    idleThreshold: 0.05
+    # Right-sizing analysis window
+    rightSizingWindow: 7d
+
+# Cost allocation by namespace labels
+kubecostProductConfigs:
+  # Map namespace labels to cost centers
+  labelMappingConfigs:
+    enabled: true
+    owner_label: "team"
+    department_label: "department"
+    product_label: "product"
+    environment_label: "environment"
+    team_label: "cost-center"
+
+  # AWS Cost and Usage Report integration
+  cloudCost:
+    enabled: true
+    provider: aws
+    awsSpotDataRegion: us-east-1
+    awsSpotDataBucket: kubecost-spot-data
+    awsSpotDataPrefix: spot-feed
+    projectID: ""
+    masterPayerARN: ""
+
+  # Alert configuration
+  alerts:
+    enabled: true
+    alertConfigs:
+      # Alert when namespace exceeds monthly budget
+      - type: budget
+        threshold: 0.9
+        window: month
+        aggregation: namespace
+        filter: ""
+        ownerContact:
+          - platform-team@example.com
+
+      # Alert on significant cost increases
+      - type: spendChange
+        relativeThreshold: 0.2
+        window: 7d
+        baselineWindow: 30d
+        aggregation: namespace
+        filter: ""
+        ownerContact:
+          - platform-team@example.com
+
+      # Alert on efficiency drops
+      - type: efficiency
+        efficiencyThreshold: 0.3
+        spendThreshold: 100
+        window: 2d
+        aggregation: namespace
+        ownerContact:
+          - platform-team@example.com
+
+# Network cost allocation (requires Kubecost network agent)
+networkCosts:
+  enabled: true
+  config:
+    services:
+      amazon-web-services: true
+      google-cloud-services: false
+
+# Persistent storage for cost data
+persistentVolume:
+  enabled: true
+  size: 32Gi
+  storageClass: gp3
+
+# Resources for Kubecost pods
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 2Gi
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 9090
+
+# Ingress for dashboard access
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: kubecost.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+# ServiceMonitor for Prometheus scraping
+serviceMonitor:
+  enabled: true
+  additionalLabels:
+    release: prometheus

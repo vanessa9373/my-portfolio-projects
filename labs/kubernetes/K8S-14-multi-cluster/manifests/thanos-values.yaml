@@ -1,0 +1,143 @@
+# Thanos Helm values for multi-cluster monitoring
+# Deployed on the management cluster
+
+# Thanos Querier - aggregates metrics from all clusters
+query:
+  enabled: true
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  # Discover Thanos Sidecars via DNS
+  stores:
+    - "dnssrv+_grpc._tcp.thanos-sidecar-prod-us.monitoring.svc.cluster.local"
+    - "dnssrv+_grpc._tcp.thanos-sidecar-prod-eu.monitoring.svc.cluster.local"
+    - "dnssrv+_grpc._tcp.thanos-sidecar-staging.monitoring.svc.cluster.local"
+    - "dnssrv+_grpc._tcp.thanos-sidecar-dev.monitoring.svc.cluster.local"
+    - "dnssrv+_grpc._tcp.thanos-sidecar-edge.monitoring.svc.cluster.local"
+    - "dnssrv+_grpc._tcp.thanos-store-gateway.monitoring.svc.cluster.local"
+  # Deduplication for HA Prometheus pairs
+  replicaLabels:
+    - prometheus_replica
+  # Query frontend for caching
+  queryFrontend:
+    enabled: true
+
+# Thanos Store Gateway - serves historical data from S3
+storegateway:
+  enabled: true
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 4Gi
+  persistence:
+    enabled: true
+    size: 20Gi
+
+# Thanos Compactor - downsamples and compacts historical data
+compactor:
+  enabled: true
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  persistence:
+    enabled: true
+    size: 50Gi
+  retentionResolutionRaw: 30d
+  retentionResolution5m: 120d
+  retentionResolution1h: 365d
+
+# Object storage configuration (S3)
+objstoreConfig: |-
+  type: S3
+  config:
+    bucket: thanos-metrics-store
+    endpoint: s3.us-east-1.amazonaws.com
+    region: us-east-1
+    access_key: ""
+    secret_key: ""
+    # Use IRSA instead of static credentials
+    # insecure: false
+    # signature_version2: false
+
+# Thanos Ruler - evaluates recording and alerting rules across clusters
+ruler:
+  enabled: true
+  replicaCount: 2
+  alertmanagers:
+    - "http://alertmanager.monitoring.svc.cluster.local:9093"
+  config: |-
+    groups:
+      - name: multi-cluster-alerts
+        rules:
+          - alert: ClusterDown
+            expr: up{job="thanos-sidecar"} == 0
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Cluster {{ $labels.cluster }} is unreachable"
+          - alert: HighErrorRate
+            expr: |
+              sum(rate(http_requests_total{status=~"5.."}[5m])) by (cluster)
+              /
+              sum(rate(http_requests_total[5m])) by (cluster) > 0.05
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High error rate on cluster {{ $labels.cluster }}"
+
+---
+# Per-cluster Prometheus configuration with Thanos Sidecar
+# Apply this to each spoke cluster via Fleet
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-thanos-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: "${CLUSTER_NAME}"
+        region: "${CLUSTER_REGION}"
+        environment: "${CLUSTER_ENV}"
+
+    scrape_configs:
+      - job_name: "kubernetes-pods"
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+
+      - job_name: "kubernetes-nodes"
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+  thanos-sidecar.yml: |
+    type: S3
+    config:
+      bucket: thanos-metrics-store
+      endpoint: s3.us-east-1.amazonaws.com
+      region: us-east-1

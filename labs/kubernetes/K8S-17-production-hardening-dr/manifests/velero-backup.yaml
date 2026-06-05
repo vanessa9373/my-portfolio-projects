@@ -1,0 +1,94 @@
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: manual-full-backup
+  namespace: velero
+  labels:
+    app: velero
+    backup-type: manual
+    trigger: on-demand
+spec:
+  includedNamespaces:
+    - production
+    - staging
+    - monitoring
+    - logging
+  excludedResources:
+    - events
+    - events.events.k8s.io
+    - nodes
+    - nodes.metrics.k8s.io
+  storageLocation: default
+  volumeSnapshotLocations:
+    - default
+  snapshotVolumes: true
+  defaultVolumesToFsBackup: true
+  ttl: 720h0m0s
+  metadata:
+    labels:
+      backup-type: manual
+---
+# Backup for specific namespace (use for targeted recovery)
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: production-only-backup
+  namespace: velero
+  labels:
+    app: velero
+    backup-type: namespace
+    target: production
+spec:
+  includedNamespaces:
+    - production
+  excludedResources:
+    - events
+    - events.events.k8s.io
+  storageLocation: default
+  volumeSnapshotLocations:
+    - default
+  snapshotVolumes: true
+  defaultVolumesToFsBackup: true
+  ttl: 168h0m0s
+  metadata:
+    labels:
+      backup-type: namespace
+      target: production
+---
+# Restore template for full cluster recovery
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: full-cluster-restore
+  namespace: velero
+  labels:
+    app: velero
+    restore-type: full
+spec:
+  backupName: manual-full-backup
+  includedNamespaces:
+    - "*"
+  excludedResources:
+    - nodes
+    - events
+    - events.events.k8s.io
+  restorePVs: true
+  preserveNodePorts: true
+  existingResourcePolicy: update
+---
+# Restore template for single namespace
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: namespace-restore
+  namespace: velero
+  labels:
+    app: velero
+    restore-type: namespace
+spec:
+  backupName: production-only-backup
+  includedNamespaces:
+    - production
+  restorePVs: true
+  preserveNodePorts: true
+  existingResourcePolicy: none
