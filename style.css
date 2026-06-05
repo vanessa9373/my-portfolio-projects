@@ -257,6 +257,67 @@ a { color: inherit; text-decoration: none; }
 }
 .card-link:hover { gap: 10px; }
 
+/* ─── Section Role Badge ────────────────────────────────────────── */
+.section-role-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 16px; border-radius: 100px;
+  font-size: 12px; font-weight: 700; letter-spacing: .4px;
+  margin-bottom: 12px;
+}
+.role-badge--sa { background: rgba(0,180,216,0.12); color: var(--cyan); border: 1px solid rgba(0,180,216,0.22); }
+.role-badge--se { background: rgba(139,92,246,0.12); color: var(--purple); border: 1px solid rgba(139,92,246,0.22); }
+
+/* ─── SE Projects Grid ──────────────────────────────────────────── */
+.se-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
+}
+.se-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 16px; padding: 28px;
+  display: flex; flex-direction: column; gap: 16px;
+  transition: border-color .25s, transform .25s, box-shadow .25s;
+}
+.se-card:hover {
+  border-color: rgba(139,92,246,0.35);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+}
+.se-card.hidden { display: none; }
+
+.se-card-top {
+  display: flex; align-items: flex-start; gap: 14px;
+}
+.se-card-top .card-icon { flex-shrink: 0; }
+.se-role-tag {
+  font-size: 11px; font-weight: 700; color: var(--purple);
+  background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2);
+  padding: 2px 10px; border-radius: 100px; display: inline-block;
+  margin-bottom: 6px;
+}
+.se-angle {
+  font-size: 13px; color: var(--text-muted);
+  background: var(--bg2); border-left: 3px solid var(--purple);
+  padding: 10px 14px; border-radius: 0 8px 8px 0;
+  line-height: 1.6;
+}
+.se-angle strong { color: var(--purple); }
+
+.se-card-links {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  margin-top: auto;
+}
+.card-link--ghost {
+  color: var(--text-muted); font-weight: 600;
+}
+.card-link--ghost:hover { color: var(--text); }
+
+.card-icon--cyan   { background: rgba(0,180,216,0.15); color: var(--cyan); border: 1px solid rgba(0,180,216,0.25); }
+.card-icon--orange { background: rgba(245,158,11,0.15); color: var(--orange); border: 1px solid rgba(245,158,11,0.25); }
+.card-icon--red    { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+
 /* ─── Labs Phase Indicator ──────────────────────────────────────── */
 .lab-phases {
   display: flex; align-items: center; justify-content: center; gap: 0;

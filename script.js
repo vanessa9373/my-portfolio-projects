@@ -14,19 +14,27 @@ window.addEventListener('scroll', () => {
 backToTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
 // Lab filter
-const filterBtns = document.querySelectorAll('.filter-btn');
-const labCards = document.querySelectorAll('.lab-card');
-
-filterBtns.forEach(btn => {
+document.querySelectorAll('[data-filter]').forEach(btn => {
   btn.addEventListener('click', () => {
-    filterBtns.forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-
     const filter = btn.dataset.filter;
-    labCards.forEach(card => {
+    document.querySelectorAll('.lab-card').forEach(card => {
       const tags = card.dataset.tags || '';
-      const show = filter === 'all' || tags.includes(filter);
-      card.classList.toggle('hidden', !show);
+      card.classList.toggle('hidden', filter !== 'all' && !tags.includes(filter));
+    });
+  });
+});
+
+// SE project filter
+document.querySelectorAll('[data-se-filter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-se-filter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const filter = btn.dataset.seFilter;
+    document.querySelectorAll('.se-card').forEach(card => {
+      const tags = card.dataset.seTags || '';
+      card.classList.toggle('hidden', filter !== 'all' && !tags.includes(filter));
     });
   });
 });
