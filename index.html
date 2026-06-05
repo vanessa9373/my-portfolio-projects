@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Cloud infrastructure portfolio projects by Vanessa Awo — Solutions Architect · Solutions Engineer · Pre-Sales SE. AWS, Terraform, Kubernetes, DevOps.">
+  <title>Portfolio Projects | Vanessa Awo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="https://jenellavan.com" class="nav-logo">
+        <svg class="logo-badge" width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+          <rect width="28" height="28" rx="6" fill="rgba(0,180,216,0.12)" stroke="rgba(0,180,216,0.28)" stroke-width="1"/>
+          <text x="14" y="19" text-anchor="middle" fill="#00b4d8" font-size="11" font-weight="800" font-family="monospace">VA</text>
+        </svg>
+        <span class="logo-text">Vanessa Awo</span>
+      </a>
+      <div class="nav-links">
+        <a href="https://jenellavan.com" class="nav-link">Portfolio</a>
+        <a href="https://jenellavan.com#about" class="nav-link">About</a>
+        <a href="https://jenellavan.com#experience" class="nav-link">Experience</a>
+        <a href="https://jenellavan.com#contact" class="nav-link">Contact</a>
+        <a href="https://github.com/vanessa9373/my-portfolio-projects" target="_blank" rel="noopener" class="nav-cta">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+          GitHub Repo
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="hero-bg"></div>
+    <div class="container hero-content">
+      <div class="hero-badge">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Cloud Portfolio Projects
+      </div>
+      <h1 class="hero-title">Infrastructure Built.<br><span class="gradient-text">Architectures Shipped.</span></h1>
+      <p class="hero-sub">3 production-grade AWS projects · 19 hands-on DevOps labs · 100% Infrastructure as Code</p>
+      <div class="hero-actions">
+        <a href="#featured" class="btn-primary">View Projects</a>
+        <a href="#labs" class="btn-ghost">Explore Labs</a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><span class="stat-num">3</span><span class="stat-label">Featured Projects</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><span class="stat-num">19</span><span class="stat-label">DevOps Labs</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><span class="stat-num">100%</span><span class="stat-label">Infrastructure as Code</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><span class="stat-num">AWS</span><span class="stat-label">SAA-C03 Certified</span></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- FEATURED PROJECTS -->
+  <section class="section" id="featured">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Featured Projects</h2>
+        <p class="section-sub">Production-grade AWS architectures built end-to-end with Terraform</p>
+      </div>
+
+      <div class="featured-grid">
+
+        <!-- Project 1: HA WordPress -->
+        <div class="project-card project-card--featured">
+          <div class="card-header">
+            <div class="card-icon card-icon--blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+            <div class="card-badges">
+              <span class="badge badge-green">Production ✓</span>
+              <span class="badge badge-blue">IaC ✓</span>
+            </div>
+          </div>
+          <h3 class="card-title">Highly Available WordPress on AWS</h3>
+          <p class="card-desc">Eliminated 3 quarterly outages costing $8K each. Designed a zero-SPOF 3-tier architecture across 3 AZs, achieving 99.9% SLO with auto-scaling and global CDN delivery.</p>
+          <div class="card-metrics">
+            <div class="metric"><span class="metric-val">99.9%</span><span class="metric-label">Availability SLO</span></div>
+            <div class="metric"><span class="metric-val">20%</span><span class="metric-label">Cost Reduction</span></div>
+            <div class="metric"><span class="metric-val">3 AZs</span><span class="metric-label">Zero SPOF</span></div>
+          </div>
+          <div class="card-stack">
+            <span class="tag tag-aws">Terraform</span>
+            <span class="tag tag-aws">EC2 ASG</span>
+            <span class="tag">RDS Multi-AZ</span>
+            <span class="tag">ALB</span>
+            <span class="tag">CloudFront</span>
+            <span class="tag">WAF</span>
+            <span class="tag">KMS</span>
+          </div>
+          <div class="card-details">
+            <details>
+              <summary>Architecture Details</summary>
+              <ul class="detail-list">
+                <li><strong>Compute:</strong> EC2 Auto Scaling Group (2–10 instances) behind ALB across 3 AZs</li>
+                <li><strong>Database:</strong> RDS MySQL Multi-AZ — synchronous replication, &lt;2 min auto-failover</li>
+                <li><strong>CDN:</strong> CloudFront + S3 OAC — 40% latency reduction for global users</li>
+                <li><strong>Security:</strong> WAF (OWASP/SQLi rules), IMDSv2, KMS CMK encryption, SSM Session Manager (zero bastion)</li>
+                <li><strong>Monitoring:</strong> CloudWatch alarms on p99 latency, 5xx rate, RDS connections</li>
+                <li><strong>Well-Architected:</strong> All 6 pillars — Operational Excellence, Security, Reliability, Performance, Cost, Sustainability</li>
+              </ul>
+            </details>
+          </div>
+          <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/ha-wordpress-terraform" target="_blank" rel="noopener" class="card-link">
+            View on GitHub
+            <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </a>
+        </div>
+
+        <!-- Project 2: Multi-Account Landing Zone -->
+        <div class="project-card project-card--featured">
+          <div class="card-header">
+            <div class="card-icon card-icon--purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            </div>
+            <div class="card-badges">
+              <span class="badge badge-purple">Enterprise</span>
+              <span class="badge badge-blue">IaC ✓</span>
+            </div>
+          </div>
+          <h3 class="card-title">Enterprise Multi-Account AWS Landing Zone</h3>
+          <p class="card-desc">Designed governance for 12 teams across 3 business units. Implemented blast-radius containment, compliance enforcement, and centralized identity for a simulated FinTech client (NexaCorp).</p>
+          <div class="card-metrics">
+            <div class="metric"><span class="metric-val">10+</span><span class="metric-label">AWS Accounts</span></div>
+            <div class="metric"><span class="metric-val">8</span><span class="metric-label">SCPs Enforced</span></div>
+            <div class="metric"><span class="metric-val">4 OUs</span><span class="metric-label">Governance Structure</span></div>
+          </div>
+          <div class="card-stack">
+            <span class="tag tag-aws">AWS Organizations</span>
+            <span class="tag tag-aws">Control Tower</span>
+            <span class="tag">Terraform</span>
+            <span class="tag">Transit Gateway</span>
+            <span class="tag">IAM Identity Center</span>
+            <span class="tag">GuardDuty</span>
+            <span class="tag">Security Hub</span>
+          </div>
+          <div class="card-details">
+            <details>
+              <summary>Architecture Details</summary>
+              <ul class="detail-list">
+                <li><strong>Structure:</strong> Management → Security OU → Infrastructure OU → Workloads OU (Prod + Non-Prod)</li>
+                <li><strong>SCPs:</strong> DenyRootUser, RequireIMDSv2, AllowedRegionsOnly, DenyPublicS3, EnforceEncryption, DenyLargeEC2</li>
+                <li><strong>Networking:</strong> Transit Gateway hub-and-spoke — Prod↔Dev network isolation enforced at VPC level</li>
+                <li><strong>Identity:</strong> SAML 2.0 SSO via IAM Identity Center — single sign-on for all 12 teams</li>
+                <li><strong>Security:</strong> GuardDuty + Security Hub aggregated centrally in Security Tooling account</li>
+                <li><strong>Cost:</strong> Per-account tagging strategy + budget alerts — each BU gets full cost visibility</li>
+              </ul>
+            </details>
+          </div>
+          <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/multi-account-landing-zone" target="_blank" rel="noopener" class="card-link">
+            View on GitHub
+            <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </a>
+        </div>
+
+        <!-- Project 3: Serverless Task API -->
+        <div class="project-card project-card--featured">
+          <div class="card-header">
+            <div class="card-icon card-icon--green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+            <div class="card-badges">
+              <span class="badge badge-green">Production ✓</span>
+              <span class="badge badge-orange">CI/CD ✓</span>
+            </div>
+          </div>
+          <h3 class="card-title">Serverless Task Management API</h3>
+          <p class="card-desc">Full CRUD REST API at 90% lower cost than equivalent EC2+RDS. Zero infrastructure management — scales from 0 to 50,000 requests/day automatically, deploys on every push via OIDC-authenticated GitHub Actions.</p>
+          <div class="card-metrics">
+            <div class="metric"><span class="metric-val">$2.32</span><span class="metric-label">/ Month at 1M reqs</span></div>
+            <div class="metric"><span class="metric-val">90%</span><span class="metric-label">Cheaper than EC2</span></div>
+            <div class="metric"><span class="metric-val">arm64</span><span class="metric-label">Graviton2 Lambda</span></div>
+          </div>
+          <div class="card-stack">
+            <span class="tag tag-aws">Lambda (Python)</span>
+            <span class="tag tag-aws">API Gateway</span>
+            <span class="tag">DynamoDB</span>
+            <span class="tag">X-Ray</span>
+            <span class="tag">GitHub Actions</span>
+            <span class="tag">OIDC</span>
+            <span class="tag">Terraform</span>
+          </div>
+          <div class="card-details">
+            <details>
+              <summary>Architecture Details</summary>
+              <ul class="detail-list">
+                <li><strong>Compute:</strong> 5 Lambda functions on Graviton2/arm64 — 20% cheaper than x86, faster cold starts</li>
+                <li><strong>API:</strong> API Gateway HTTP API at $1.00/M vs REST API $3.50/M — 71% cheaper</li>
+                <li><strong>Database:</strong> DynamoDB PAY_PER_REQUEST + GSI for status-based queries + TTL auto-expiry</li>
+                <li><strong>CI/CD:</strong> GitHub Actions with OIDC — zero long-lived AWS credentials, deploys on merge to main</li>
+                <li><strong>Observability:</strong> AWS X-Ray distributed tracing, CloudWatch metrics and alarms per function</li>
+                <li><strong>Endpoints:</strong> POST/GET/PATCH/DELETE /tasks with full input validation and error handling</li>
+              </ul>
+            </details>
+          </div>
+          <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/serverless-task-api" target="_blank" rel="noopener" class="card-link">
+            View on GitHub
+            <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- LABS -->
+  <section class="section section-alt" id="labs">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">19 DevOps & Cloud Labs</h2>
+        <p class="section-sub">Hands-on labs following a deliberate progression — from cloud foundation to production maturity</p>
+      </div>
+
+      <div class="lab-phases">
+        <div class="phase phase--foundation">
+          <span class="phase-dot"></span>Foundation
+        </div>
+        <div class="phase-line"></div>
+        <div class="phase phase--operations">
+          <span class="phase-dot"></span>Operations
+        </div>
+        <div class="phase-line"></div>
+        <div class="phase phase--maturity">
+          <span class="phase-dot"></span>Maturity
+        </div>
+      </div>
+
+      <!-- Filter Buttons -->
+      <div class="filter-row">
+        <button class="filter-btn active" data-filter="all">All Labs</button>
+        <button class="filter-btn" data-filter="foundation">Foundation</button>
+        <button class="filter-btn" data-filter="operations">Operations</button>
+        <button class="filter-btn" data-filter="maturity">Maturity</button>
+        <button class="filter-btn" data-filter="kubernetes">Kubernetes</button>
+        <button class="filter-btn" data-filter="terraform">Terraform</button>
+        <button class="filter-btn" data-filter="sre">SRE</button>
+        <button class="filter-btn" data-filter="security">Security</button>
+      </div>
+
+      <div class="labs-grid" id="labs-grid">
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/01-cloud-migration" target="_blank" rel="noopener" class="lab-card" data-tags="foundation terraform">
+          <div class="lab-num">01</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--foundation">Foundation</div>
+            <h4>Enterprise Cloud Migration</h4>
+            <p>On-prem to AWS — ECS Fargate, Aurora PostgreSQL, ALB, Terraform IaC. 35% cost reduction, 99.95% uptime.</p>
+            <div class="lab-tags">
+              <span class="tag">Terraform</span><span class="tag">ECS Fargate</span><span class="tag">Aurora</span><span class="tag">Docker</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/02-multi-cloud-architecture" target="_blank" rel="noopener" class="lab-card" data-tags="foundation terraform">
+          <div class="lab-num">02</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--foundation">Foundation</div>
+            <h4>Multi-Cloud Architecture</h4>
+            <p>AWS + Azure + GCP cross-cloud design with Terraform modules per provider, Transit Gateway, VNet peering.</p>
+            <div class="lab-tags">
+              <span class="tag">AWS</span><span class="tag">Azure</span><span class="tag">GCP</span><span class="tag">Terraform</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/03-terraform-modules" target="_blank" rel="noopener" class="lab-card" data-tags="foundation terraform">
+          <div class="lab-num">03</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--foundation">Foundation</div>
+            <h4>Reusable Terraform Modules</h4>
+            <p>Multi-cloud module library across AWS, Azure, GCP. Versioning, testing, input validation, remote state backends.</p>
+            <div class="lab-tags">
+              <span class="tag">Terraform</span><span class="tag">IaC</span><span class="tag">Modules</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/04-iac-terraform-ansible" target="_blank" rel="noopener" class="lab-card" data-tags="foundation terraform">
+          <div class="lab-num">04</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--foundation">Foundation</div>
+            <h4>Terraform + Ansible IaC</h4>
+            <p>Infrastructure provisioning with Terraform + configuration management with Ansible playbooks for EC2 fleets.</p>
+            <div class="lab-tags">
+              <span class="tag">Terraform</span><span class="tag">Ansible</span><span class="tag">EC2</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/05-cicd-kubernetes" target="_blank" rel="noopener" class="lab-card" data-tags="foundation kubernetes">
+          <div class="lab-num">05</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--foundation">Foundation</div>
+            <h4>CI/CD + Kubernetes</h4>
+            <p>Full CI/CD pipeline deploying to EKS. GitHub Actions → Docker build → ECR push → kubectl rollout.</p>
+            <div class="lab-tags">
+              <span class="tag">Kubernetes</span><span class="tag">EKS</span><span class="tag">GitHub Actions</span><span class="tag">ECR</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/06-cicd-gitops" target="_blank" rel="noopener" class="lab-card" data-tags="foundation">
+          <div class="lab-num">06</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--foundation">Foundation</div>
+            <h4>GitOps with GitHub Actions</h4>
+            <p>GitOps workflow — Git is the source of truth. PR-triggered deployments, environment promotion, rollback via revert.</p>
+            <div class="lab-tags">
+              <span class="tag">GitOps</span><span class="tag">GitHub Actions</span><span class="tag">OIDC</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/07-cicd-argocd-rollouts" target="_blank" rel="noopener" class="lab-card" data-tags="foundation kubernetes">
+          <div class="lab-num">07</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--foundation">Foundation</div>
+            <h4>ArgoCD Progressive Delivery</h4>
+            <p>Canary + blue-green deployments with ArgoCD Rollouts. Automated analysis, traffic splitting, instant rollback.</p>
+            <div class="lab-tags">
+              <span class="tag">ArgoCD</span><span class="tag">Canary</span><span class="tag">Kubernetes</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/08-kubernetes-observability" target="_blank" rel="noopener" class="lab-card" data-tags="operations kubernetes">
+          <div class="lab-num">08</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--operations">Operations</div>
+            <h4>Kubernetes Observability</h4>
+            <p>Prometheus + Grafana stack on EKS. Node Exporter, kube-state-metrics, custom dashboards, PagerDuty alerting.</p>
+            <div class="lab-tags">
+              <span class="tag">Prometheus</span><span class="tag">Grafana</span><span class="tag">EKS</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/09-sre-observability-slo" target="_blank" rel="noopener" class="lab-card" data-tags="operations sre">
+          <div class="lab-num">09</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--operations">Operations</div>
+            <h4>SRE Observability + SLOs</h4>
+            <p>SLO/SLI/error budget platform. Availability, latency, and throughput SLOs with burn-rate alerting and budget dashboards.</p>
+            <div class="lab-tags">
+              <span class="tag">SRE</span><span class="tag">SLOs</span><span class="tag">Error Budgets</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/10-logging-tracing-pipeline" target="_blank" rel="noopener" class="lab-card" data-tags="operations sre">
+          <div class="lab-num">10</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--operations">Operations</div>
+            <h4>Logging + Distributed Tracing</h4>
+            <p>ELK Stack (Elasticsearch, Logstash, Kibana) + OpenTelemetry distributed tracing across microservices.</p>
+            <div class="lab-tags">
+              <span class="tag">ELK Stack</span><span class="tag">OpenTelemetry</span><span class="tag">Jaeger</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/11-incident-response-slo" target="_blank" rel="noopener" class="lab-card" data-tags="operations sre">
+          <div class="lab-num">11</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--operations">Operations</div>
+            <h4>SLO-Driven Incident Response</h4>
+            <p>Automated incident detection from SLO burn, PagerDuty escalation, runbook automation, and MTTR tracking.</p>
+            <div class="lab-tags">
+              <span class="tag">SRE</span><span class="tag">PagerDuty</span><span class="tag">Runbooks</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/12-incident-response-postmortem" target="_blank" rel="noopener" class="lab-card" data-tags="operations sre">
+          <div class="lab-num">12</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--operations">Operations</div>
+            <h4>Blameless Postmortem Process</h4>
+            <p>Auto-remediation Lambda functions, blameless postmortem templates, and incident timeline reconstruction tooling.</p>
+            <div class="lab-tags">
+              <span class="tag">Lambda</span><span class="tag">Postmortem</span><span class="tag">Auto-remediation</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/13-chaos-engineering-aws" target="_blank" rel="noopener" class="lab-card" data-tags="maturity">
+          <div class="lab-num">13</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--maturity">Maturity</div>
+            <h4>Chaos Engineering on AWS</h4>
+            <p>AWS Fault Injection Simulator experiments — EC2 instance termination, RDS failover, network latency injection.</p>
+            <div class="lab-tags">
+              <span class="tag">AWS FIS</span><span class="tag">Chaos</span><span class="tag">Resilience</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/14-chaos-engineering-litmus" target="_blank" rel="noopener" class="lab-card" data-tags="maturity kubernetes">
+          <div class="lab-num">14</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--maturity">Maturity</div>
+            <h4>LitmusChaos on Kubernetes</h4>
+            <p>Pod-kill, node-drain, and network-partition experiments on EKS with LitmusChaos. Validates K8s resilience patterns.</p>
+            <div class="lab-tags">
+              <span class="tag">LitmusChaos</span><span class="tag">Kubernetes</span><span class="tag">EKS</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/15-security-compliance" target="_blank" rel="noopener" class="lab-card" data-tags="maturity security">
+          <div class="lab-num">15</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--maturity">Maturity</div>
+            <h4>Security &amp; Compliance as Code</h4>
+            <p>IAM least-privilege policies, SCPs, GuardDuty, AWS Config rules, and Security Hub findings automation.</p>
+            <div class="lab-tags">
+              <span class="tag">IAM</span><span class="tag">GuardDuty</span><span class="tag">Security Hub</span><span class="tag">Config</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/16-kubernetes-security" target="_blank" rel="noopener" class="lab-card" data-tags="maturity kubernetes security">
+          <div class="lab-num">16</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--maturity">Maturity</div>
+            <h4>Kubernetes Security Hardening</h4>
+            <p>RBAC, Pod Security Standards, OPA Gatekeeper policies, network policies, secrets encryption, image scanning.</p>
+            <div class="lab-tags">
+              <span class="tag">RBAC</span><span class="tag">OPA</span><span class="tag">Network Policy</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/17-serverless-data-pipeline" target="_blank" rel="noopener" class="lab-card" data-tags="maturity">
+          <div class="lab-num">17</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--maturity">Maturity</div>
+            <h4>Serverless Data Pipeline</h4>
+            <p>Event-driven data pipeline: S3 trigger → Lambda transform → DynamoDB storage + SNS notifications. Zero servers.</p>
+            <div class="lab-tags">
+              <span class="tag">Lambda</span><span class="tag">S3</span><span class="tag">DynamoDB</span><span class="tag">SNS</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/18-cloud-cost-optimization" target="_blank" rel="noopener" class="lab-card" data-tags="maturity">
+          <div class="lab-num">18</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--maturity">Maturity</div>
+            <h4>FinOps &amp; Cost Optimization</h4>
+            <p>Right-sizing analysis, Savings Plans modeling, S3 Intelligent-Tiering, Spot Instance strategy, budget alerts.</p>
+            <div class="lab-tags">
+              <span class="tag">FinOps</span><span class="tag">Cost Explorer</span><span class="tag">Savings Plans</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="https://github.com/vanessa9373/my-portfolio-projects/tree/main/labs/19-devops-mastery-ecommerce" target="_blank" rel="noopener" class="lab-card" data-tags="maturity kubernetes terraform sre">
+          <div class="lab-num">19</div>
+          <div class="lab-body">
+            <div class="lab-phase-badge phase-badge--maturity">Maturity</div>
+            <h4>DevOps Mastery — E-Commerce on EKS</h4>
+            <p>End-to-end production platform: EKS + ArgoCD + Prometheus + Grafana + Chaos Engineering. Full DevOps lifecycle.</p>
+            <div class="lab-tags">
+              <span class="tag">EKS</span><span class="tag">ArgoCD</span><span class="tag">Prometheus</span><span class="tag">Full Stack</span>
+            </div>
+          </div>
+        </a>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section cta-section">
+    <div class="container">
+      <div class="cta-box">
+        <h2>Let's Work Together</h2>
+        <p>Solutions Architect · Solutions Engineer · Pre-Sales SE · Available for new opportunities</p>
+        <div class="cta-actions">
+          <a href="https://jenellavan.com#contact" class="btn-primary">Get in Touch</a>
+          <a href="https://jenellavan.com/resume.html" class="btn-ghost">View Resume</a>
+          <a href="https://github.com/vanessa9373/my-portfolio-projects" target="_blank" rel="noopener" class="btn-ghost">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            Full Source Code
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <svg class="logo-badge" width="22" height="22" viewBox="0 0 28 28" fill="none">
+          <rect width="28" height="28" rx="6" fill="rgba(0,180,216,0.12)" stroke="rgba(0,180,216,0.28)" stroke-width="1"/>
+          <text x="14" y="19" text-anchor="middle" fill="#00b4d8" font-size="11" font-weight="800" font-family="monospace">VA</text>
+        </svg>
+        <span>Vanessa Awo</span>
+      </div>
+      <p class="footer-copy">&copy; 2026 Vanessa Awo · <a href="https://jenellavan.com">jenellavan.com</a></p>
+      <div class="footer-socials">
+        <a href="https://www.linkedin.com/in/vanessajen/" target="_blank" rel="noopener" aria-label="LinkedIn">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+        </a>
+        <a href="https://github.com/vanessa9373" target="_blank" rel="noopener" aria-label="GitHub">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+        </a>
+        <a href="mailto:vanessa93730@gmail.com" aria-label="Email">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        </a>
+      </div>
+    </div>
+  </footer>
+
+  <button class="back-to-top" id="backToTop" aria-label="Back to top">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+  </button>
+
+  <script src="script.js"></script>
+</body>
+</html>
