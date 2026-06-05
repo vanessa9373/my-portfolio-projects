@@ -1,0 +1,11 @@
+output "alb_sg_id"        { value = aws_security_group.alb.id }
+output "ec2_sg_id"        { value = aws_security_group.ec2.id }
+output "db_sg_id"         { value = aws_security_group.rds.id }
+output "endpoint_sg_id"   { value = aws_security_group.endpoints.id }
+output "kms_key_id"       { value = aws_kms_key.main.key_id }
+output "kms_key_arn"      { value = aws_kms_key.main.arn }
+output "waf_acl_arn"      { value = aws_wafv2_web_acl.main.arn }
+output "waf_acl_id"       { value = aws_wafv2_web_acl.main.id }
+output "acm_cert_arn"     { value = aws_acm_certificate.main.arn }
+output "ec2_instance_profile_name" { value = aws_iam_instance_profile.ec2.name }
+output "ec2_role_arn"     { value = aws_iam_role.ec2.arn }
