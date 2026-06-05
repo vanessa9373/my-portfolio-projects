@@ -26,15 +26,3 @@ document.querySelectorAll('[data-filter]').forEach(btn => {
   });
 });
 
-// SE project filter
-document.querySelectorAll('[data-se-filter]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('[data-se-filter]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const filter = btn.dataset.seFilter;
-    document.querySelectorAll('.se-card').forEach(card => {
-      const tags = card.dataset.seTags || '';
-      card.classList.toggle('hidden', filter !== 'all' && !tags.includes(filter));
-    });
-  });
-});
