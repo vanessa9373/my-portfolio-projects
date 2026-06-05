@@ -81,6 +81,43 @@ Production-grade serverless e-commerce platform for 10M+ users with polyglot per
 
 ---
 
+### 5. [eks-online-boutique](./eks-online-boutique)
+**Online Boutique — Production-Grade Microservices on AWS EKS**
+
+Full DevOps lifecycle for 11 real microservices across Go, Python, Java, C#, and Node.js.
+
+| Component | Implementation |
+|-----------|---------------|
+| **Infrastructure** | Terraform: VPC (3 AZs) · EKS 1.28 · ECR (11 repos) · IRSA roles |
+| **CI/CD** | GitHub Actions (OIDC): build → Trivy CVE scan → ECR push → manifest update |
+| **GitOps** | ArgoCD: auto-sync from Git, drift detection, rollback via `git revert` |
+| **Observability** | Prometheus + Grafana (golden signals) · CloudWatch Container Insights · X-Ray |
+| **Security** | Trivy blocks CRITICAL CVEs · RBAC · NetworkPolicies · External Secrets Operator |
+| **Autoscaling** | Karpenter: node provisioning < 60s · ~30% cost reduction vs static node groups |
+
+> Full repo: [github.com/vanessa9373/portfolio-devops-project](https://github.com/vanessa9373/portfolio-devops-project)  
+> DevOps angle: every production pattern — GitOps, observability, security, cost — implemented, not just described
+
+---
+
+### 6. [aws-apac-forage](./aws-apac-forage)
+**AWS APAC Solutions Architecture — Forage Virtual Experience**
+
+Simulated full SA/SE engagement: discovery → diagnosis → architecture → stakeholder presentation.
+
+| Component | Implementation |
+|-----------|---------------|
+| **Discovery** | Mapped current single-EC2 architecture, identified all single points of failure |
+| **Architecture** | Elastic Beanstalk + RDS Multi-AZ + CloudFront (PriceClass_200 for APAC) + Route 53 |
+| **Communication** | Restaurant analogy to explain Auto Scaling to non-technical client · approved first meeting |
+| **Objection handling** | Reframed $70→$280/month cost as risk elimination: 3 outages × $5K = $15K/quarter risk |
+| **ADRs** | Elastic Beanstalk over EKS (right-sized for client ops capability) · CloudFront PriceClass_200 |
+
+> SE angle: Demonstrates the full pre-sales motion — discovery, design, communication, objection handling  
+> Certified by AWS · Forage · September 2025
+
+---
+
 ## Labs
 
 19 hands-on cloud infrastructure labs covering DevOps, Kubernetes, SRE, security, and cost optimization.
