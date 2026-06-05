@@ -168,4 +168,4 @@ Every push to `main` triggers the GitHub Actions pipeline:
 
 ---
 
-*Part of the [Cloud Engineering Portfolio](https://jenellavan.com) by Vanessa Awo*
+*Built by Vanessa Awo | [LinkedIn](https://linkedin.com/in/vanessajen) | [Portfolio](https://jenellavan.com)*

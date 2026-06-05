@@ -294,4 +294,4 @@ aws rds create-db-instance-read-replica \
 
 ---
 
-*Built by Vanessa Awo | [LinkedIn](https://linkedin.com/in/vanessaawo) | [Portfolio Site](https://vanessaawo.github.io/sa-career)*
+*Built by Vanessa Awo | [LinkedIn](https://linkedin.com/in/vanessajen) | [Portfolio](https://jenellavan.com)*

@@ -60,6 +60,27 @@ Full CRUD REST API on serverless architecture with CI/CD.
 
 ---
 
+### 4. [nexashop-ecommerce](./nexashop-ecommerce)
+**NexaShop — Cloud-Native E-Commerce Platform**
+
+Production-grade serverless e-commerce platform for 10M+ users with polyglot persistence and a full CI/CD pipeline.
+
+| Component | Implementation |
+|-----------|---------------|
+| **Frontend** | React → S3 + CloudFront (OAC) + WAF (OWASP Top 10 + rate limiting) |
+| **API** | Lambda + API Gateway · Cognito JWT auth · X-Ray tracing |
+| **Catalog DB** | DynamoDB PAY_PER_REQUEST + category GSI for browse queries |
+| **Orders DB** | Aurora PostgreSQL Multi-AZ — ACID transactions, <30s failover |
+| **Sessions** | ElastiCache Redis — sub-ms cart state, TTL-based expiry |
+| **Order pipeline** | SQS decoupled processing + DLQ + SES confirmation email |
+| **CI/CD** | GitHub Actions: Lambda zip deploy + ECS Fargate + S3 sync + CloudFront invalidation |
+| **Est. cost** | ~$297/month vs ~$1,800/month on-prem equivalent |
+
+> SA angle: Polyglot persistence — right database for each workload (DynamoDB vs Aurora vs Redis)  
+> SE angle: Live architecture trade-off demo — each ADR explains why one service beats the alternative
+
+---
+
 ## Labs
 
 19 hands-on cloud infrastructure labs covering DevOps, Kubernetes, SRE, security, and cost optimization.

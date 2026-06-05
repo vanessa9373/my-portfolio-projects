@@ -208,4 +208,4 @@ git push origin main
 
 ---
 
-*Built by Vanessa Awo | [LinkedIn](https://linkedin.com/in/vanessaawo) | [Portfolio Site](https://vanessaawo.github.io/sa-career)*
+*Built by Vanessa Awo | [LinkedIn](https://linkedin.com/in/vanessajen) | [Portfolio](https://jenellavan.com)*
