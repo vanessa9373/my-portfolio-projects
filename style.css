@@ -438,6 +438,114 @@ a { color: inherit; text-decoration: none; }
 .back-to-top.visible { opacity: 1; pointer-events: auto; }
 .back-to-top:hover { transform: translateY(-3px); }
 
+/* ─── Resume Dropdown (Navbar) ──────────────────────────────────── */
+.resume-dropdown {
+  position: relative;
+}
+.resume-toggle {
+  background: none; border: 1px solid var(--border2);
+  cursor: pointer; font-family: inherit;
+}
+.resume-toggle .chevron-icon {
+  transition: transform .2s;
+}
+.resume-dropdown.open .chevron-icon {
+  transform: rotate(180deg);
+}
+.resume-menu {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  min-width: 240px;
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: 12px; padding: 6px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  z-index: 200;
+  opacity: 0; pointer-events: none;
+  transform: translateY(-6px);
+  transition: opacity .18s, transform .18s;
+}
+.resume-dropdown.open .resume-menu {
+  opacity: 1; pointer-events: auto; transform: translateY(0);
+}
+.resume-option {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 8px;
+  transition: background .15s; cursor: pointer;
+  color: var(--text);
+}
+.resume-option:hover { background: var(--bg3); }
+.resume-option .icon { color: var(--text-muted); flex-shrink: 0; }
+.resume-option:hover .icon { color: var(--cyan); }
+
+.resume-fmt {
+  width: 38px; height: 38px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 800; letter-spacing: .5px;
+}
+.resume-fmt--pdf  { background: rgba(239,68,68,0.15);  color: #EF4444; border: 1px solid rgba(239,68,68,0.25); }
+.resume-fmt--docx { background: rgba(0,180,216,0.12);  color: var(--cyan); border: 1px solid var(--border2); }
+.resume-fmt--txt  { background: rgba(245,158,11,0.12); color: var(--orange); border: 1px solid rgba(245,158,11,0.22); }
+
+.resume-info {
+  display: flex; flex-direction: column; gap: 2px; flex: 1;
+}
+.resume-name { font-size: 13px; font-weight: 600; }
+.resume-hint { font-size: 11px; color: var(--text-muted); }
+
+/* ─── Resume Strip (Hero) ───────────────────────────────────────── */
+.resume-strip {
+  display: inline-flex; align-items: center; gap: 10px;
+  flex-wrap: wrap; justify-content: center;
+  margin-bottom: 48px;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 100px; padding: 8px 16px;
+}
+.resume-strip-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; color: var(--text-muted);
+}
+.resume-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 14px; border-radius: 100px;
+  font-size: 12px; font-weight: 700;
+  transition: opacity .2s, transform .15s;
+}
+.resume-pill:hover { opacity: .82; transform: translateY(-1px); }
+.resume-pill--pdf  { background: rgba(239,68,68,0.15);  color: #EF4444; border: 1px solid rgba(239,68,68,0.25); }
+.resume-pill--docx { background: rgba(0,180,216,0.12);  color: var(--cyan); border: 1px solid var(--border2); }
+.resume-pill--txt  { background: rgba(245,158,11,0.12); color: var(--orange); border: 1px solid rgba(245,158,11,0.22); }
+
+/* ─── Resume CTA Section ────────────────────────────────────────── */
+.cta-resume {
+  margin-top: 28px; padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.cta-resume-label {
+  font-size: 12px; font-weight: 600; color: var(--text-muted);
+  margin-bottom: 12px; text-transform: uppercase; letter-spacing: .6px;
+}
+.cta-resume-btns {
+  display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+}
+.cta-resume-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: 10px;
+  font-size: 14px; font-weight: 700;
+  transition: opacity .2s, transform .15s;
+}
+.cta-resume-btn:hover { opacity: .85; transform: translateY(-2px); }
+.cta-resume-btn--pdf  {
+  background: rgba(239,68,68,0.12); color: #EF4444;
+  border: 1px solid rgba(239,68,68,0.28);
+}
+.cta-resume-btn--docx {
+  background: rgba(0,180,216,0.10); color: var(--cyan);
+  border: 1px solid var(--border2);
+}
+.cta-resume-btn--txt  {
+  background: rgba(245,158,11,0.10); color: var(--orange);
+  border: 1px solid rgba(245,158,11,0.22);
+}
+
 /* ─── Responsive ────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .nav-links .nav-link { display: none; }
@@ -450,4 +558,6 @@ a { color: inherit; text-decoration: none; }
   .phase-line { display: none; }
   .cta-box { padding: 36px 24px; }
   .footer-inner { flex-direction: column; text-align: center; }
+  .resume-strip { padding: 10px 14px; border-radius: 16px; }
+  .resume-menu { right: auto; left: 0; }
 }

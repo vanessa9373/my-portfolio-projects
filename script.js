@@ -1,3 +1,31 @@
+// Resume dropdown toggle
+const resumeDropdown = document.getElementById('resumeDropdown');
+const resumeToggle   = document.getElementById('resumeToggle');
+
+if (resumeToggle) {
+  resumeToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = resumeDropdown.classList.toggle('open');
+    resumeToggle.setAttribute('aria-expanded', isOpen);
+  });
+
+  // Close on outside click
+  document.addEventListener('click', (e) => {
+    if (!resumeDropdown.contains(e.target)) {
+      resumeDropdown.classList.remove('open');
+      resumeToggle.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  // Close on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      resumeDropdown.classList.remove('open');
+      resumeToggle.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
 // Navbar scroll effect
 const navbar = document.getElementById('navbar');
 window.addEventListener('scroll', () => {
