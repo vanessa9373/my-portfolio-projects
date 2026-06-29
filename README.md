@@ -38,6 +38,8 @@ Every project includes:
 | 5 | [EKS Online Boutique](#5-eks-microservices-platform) | EKS · ArgoCD · Prometheus · Karpenter · Trivy | GitOps · 11 microservices · 5 languages |
 | 6 | [AWS APAC Forage SA](#6-aws-apac-solutions-architecture-simulation) | Elastic Beanstalk · RDS · CloudFront · Route 53 | Full pre-sales motion · Forage certified |
 
+
+
 **Plus:** [19 hands-on labs](#labs) — Kubernetes, GitOps, chaos engineering, SRE, FinOps, security
 
 ---
