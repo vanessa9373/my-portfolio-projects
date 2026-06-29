@@ -1,20 +1,54 @@
-# My Portfolio Projects
+<div align="center">
 
-Cloud infrastructure projects by **Vanessa Awo** — Solutions Architect · Solutions Engineer · Pre-Sales SE
+# Vanessa Awo — AWS Solutions Architect Portfolio
 
-[![AWS](https://img.shields.io/badge/AWS-FF9900?style=flat&logo=amazonaws&logoColor=white)](https://aws.amazon.com)
-[![Terraform](https://img.shields.io/badge/Terraform-7B42BC?style=flat&logo=terraform&logoColor=white)](https://terraform.io)
-[![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
-[![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat&logo=githubactions&logoColor=white)](https://github.com/features/actions)
+**Solutions Architect · Solutions Engineer · Pre-Sales SE**
+
+[![Portfolio](https://img.shields.io/badge/Portfolio-jenellavan.com-00b4d8?style=flat&logo=githubpages&logoColor=white)](https://jenellavan.com)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-vanessajen-0A66C2?style=flat&logo=linkedin&logoColor=white)](https://linkedin.com/in/vanessajen)
+[![AWS SAA-C03](https://img.shields.io/badge/AWS_SAA--C03-Certified-FF9900?style=flat&logo=amazonaws&logoColor=white)](https://jenellavan.com)
+[![AWS CCP](https://img.shields.io/badge/AWS_CCP-Certified-FF9900?style=flat&logo=amazonaws&logoColor=white)](https://jenellavan.com)
+[![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC?style=flat&logo=terraform&logoColor=white)](https://terraform.io)
+[![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-CI/CD-2088FF?style=flat&logo=githubactions&logoColor=white)](https://github.com/features/actions)
+
+</div>
 
 ---
 
-## Projects
+## What's In This Repo
 
-### 1. [ha-wordpress-terraform](./ha-wordpress-terraform)
-**Highly Available WordPress on AWS — Terraform IaC**
+6 production-grade AWS cloud projects built to demonstrate the full Solutions Architect skill set — infrastructure design, Terraform IaC, Well-Architected trade-off analysis, and stakeholder-facing documentation.
 
-Production-grade, zero-SPOF 3-tier architecture across 3 Availability Zones.
+Every project includes:
+- **Terraform IaC** — reproducible, reviewable infrastructure
+- **Architecture diagrams** — Draw.io with AWS icons, visual on [jenellavan.com/architecture](https://jenellavan.com/architecture.html)
+- **Well-Architected docs** — design decisions with explicit trade-offs
+- **SA/SE framing** — how I'd present each project in a discovery call or technical demo
+
+---
+
+## Projects at a Glance
+
+| # | Project | Key Services | Highlights |
+|---|---------|-------------|------------|
+| 1 | [HA WordPress](#1-ha-wordpress-on-aws) | EC2 ASG · RDS Multi-AZ · CloudFront · WAF | Zero-SPOF · 3 AZs · Full IaC |
+| 2 | [Multi-Account Landing Zone](#2-multi-account-aws-landing-zone) | AWS Organizations · SCPs · Transit Gateway · IAM Identity Center | 8 SCPs · 10+ accounts · SAML SSO |
+| 3 | [Serverless Task API](#3-serverless-task-api) | Lambda · API Gateway · DynamoDB · Cognito | 90% cheaper than EC2+RDS · ~$2.32/mo |
+| 4 | [NexaShop E-Commerce](#4-nexashop-e-commerce-platform) | Lambda · Aurora · DynamoDB · ElastiCache · SQS | Polyglot persistence · 10M+ users |
+| 5 | [EKS Online Boutique](#5-eks-microservices-platform) | EKS · ArgoCD · Prometheus · Karpenter · Trivy | GitOps · 11 microservices · 5 languages |
+| 6 | [AWS APAC Forage SA](#6-aws-apac-solutions-architecture-simulation) | Elastic Beanstalk · RDS · CloudFront · Route 53 | Full pre-sales motion · Forage certified |
+
+**Plus:** [19 hands-on labs](#labs) — Kubernetes, GitOps, chaos engineering, SRE, FinOps, security
+
+---
+
+## Project Details
+
+### 1. HA WordPress on AWS
+
+> `./ha-wordpress-terraform`
+
+Production-grade, zero-SPOF 3-tier architecture across 3 Availability Zones — designed around the AWS Well-Architected Framework.
 
 | Component | Implementation |
 |-----------|---------------|
@@ -25,15 +59,16 @@ Production-grade, zero-SPOF 3-tier architecture across 3 Availability Zones.
 | **Security** | WAF (OWASP/SQLi rules), IMDSv2, KMS CMK encryption, SSM Session Manager |
 | **Monitoring** | CloudWatch alarms on p99 latency, 5xx rate, RDS connections |
 
-> SA angle: Well-Architected Framework across all 6 pillars  
-> SE angle: Live POC demonstrating architecture trade-offs to stakeholders
+**SA angle:** Well-Architected review across all 6 pillars with explicit trade-off docs  
+**SE angle:** Live POC demonstrating failover behavior to a non-technical stakeholder
 
 ---
 
-### 2. [multi-account-landing-zone](./multi-account-landing-zone)
-**Enterprise Multi-Account AWS Landing Zone**
+### 2. Multi-Account AWS Landing Zone
 
-Enterprise-grade multi-account architecture with centralized security and governance.
+> `./multi-account-landing-zone`
+
+Enterprise-grade multi-account governance — the foundational architecture every large customer needs before scaling workloads on AWS.
 
 | Component | Implementation |
 |-----------|---------------|
@@ -41,29 +76,38 @@ Enterprise-grade multi-account architecture with centralized security and govern
 | **Governance** | 8 SCPs — DenyRootUser, RequireIMDSv2, AllowedRegionsOnly, DenyPublicS3 |
 | **Networking** | Transit Gateway hub-and-spoke · Prod↔Dev network isolation |
 | **Identity** | SAML 2.0 SSO via IAM Identity Center |
-| **Security** | GuardDuty + Security Hub centralized across all accounts |
+| **Security** | GuardDuty + Security Hub centralized across all member accounts |
+
+**SA angle:** Governance-first design — built for a team scaling from 1 to 50+ accounts  
+**Blog post:** [How I Built a Multi-Account AWS Landing Zone from Scratch](https://jenellavan.com/posts/multi-account-landing-zone.html)
 
 ---
 
-### 3. [serverless-task-api](./serverless-task-api)
-**Serverless Task Management API — 90% cheaper than EC2+RDS**
+### 3. Serverless Task API
 
-Full CRUD REST API on serverless architecture with CI/CD.
+> `./serverless-task-api`
+
+Full CRUD REST API on serverless architecture with CI/CD — 90% cost reduction vs equivalent EC2+RDS.
 
 | Component | Implementation |
 |-----------|---------------|
 | **Compute** | 5 Lambda functions on Graviton2/arm64 — 20% cheaper than x86 |
-| **API** | API Gateway HTTP API — $1.00/M vs REST API $3.50/M |
+| **API** | API Gateway HTTP API — $1.00/M requests vs REST API $3.50/M |
 | **Database** | DynamoDB PAY_PER_REQUEST + GSI for status-based queries |
+| **Auth** | Cognito User Pools — JWT validation on every endpoint |
 | **CI/CD** | GitHub Actions with OIDC auth — no long-lived AWS keys |
-| **Cost** | ~$2.32/month at 1M requests |
+| **Est. cost** | ~$2.32/month at 1M requests/month |
+
+**SA angle:** Cost model comparison vs EC2+RDS — quantified TCO for the architecture decision  
+**SE angle:** 30-minute live demo that shows serverless trade-offs with real numbers
 
 ---
 
-### 4. [nexashop-ecommerce](./nexashop-ecommerce)
-**NexaShop — Cloud-Native E-Commerce Platform**
+### 4. NexaShop E-Commerce Platform
 
-Production-grade serverless e-commerce platform for 10M+ users with polyglot persistence and a full CI/CD pipeline.
+> `./nexashop-ecommerce`
+
+Cloud-native e-commerce platform designed for 10M+ users — polyglot persistence, decoupled order processing, full CI/CD.
 
 | Component | Implementation |
 |-----------|---------------|
@@ -71,20 +115,22 @@ Production-grade serverless e-commerce platform for 10M+ users with polyglot per
 | **API** | Lambda + API Gateway · Cognito JWT auth · X-Ray tracing |
 | **Catalog DB** | DynamoDB PAY_PER_REQUEST + category GSI for browse queries |
 | **Orders DB** | Aurora PostgreSQL Multi-AZ — ACID transactions, <30s failover |
-| **Sessions** | ElastiCache Redis — sub-ms cart state, TTL-based expiry |
+| **Sessions** | ElastiCache Redis — sub-millisecond cart reads, TTL-based expiry |
 | **Order pipeline** | SQS decoupled processing + DLQ + SES confirmation email |
-| **CI/CD** | GitHub Actions: Lambda zip deploy + ECS Fargate + S3 sync + CloudFront invalidation |
+| **CI/CD** | GitHub Actions: Lambda zip → ECS Fargate → S3 sync → CloudFront invalidation |
 | **Est. cost** | ~$297/month vs ~$1,800/month on-prem equivalent |
 
-> SA angle: Polyglot persistence — right database for each workload (DynamoDB vs Aurora vs Redis)  
-> SE angle: Live architecture trade-off demo — each ADR explains why one service beats the alternative
+**SA angle:** Polyglot persistence — right database for each workload with explicit ADRs  
+**SE angle:** Architecture decision records (ADRs) explain every choice vs the alternative
 
 ---
 
-### 5. [eks-online-boutique](./eks-online-boutique)
-**Online Boutique — Production-Grade Microservices on AWS EKS**
+### 5. EKS Microservices Platform
 
-Full DevOps lifecycle for 11 real microservices across Go, Python, Java, C#, and Node.js.
+> `./eks-online-boutique`  
+> Full repo: [vanessa9373/portfolio-devops-project](https://github.com/vanessa9373/portfolio-devops-project)
+
+Full DevOps lifecycle for 11 real microservices across Go, Python, Java, C#, and Node.js — every production pattern implemented.
 
 | Component | Implementation |
 |-----------|---------------|
@@ -93,34 +139,31 @@ Full DevOps lifecycle for 11 real microservices across Go, Python, Java, C#, and
 | **GitOps** | ArgoCD: auto-sync from Git, drift detection, rollback via `git revert` |
 | **Observability** | Prometheus + Grafana (golden signals) · CloudWatch Container Insights · X-Ray |
 | **Security** | Trivy blocks CRITICAL CVEs · RBAC · NetworkPolicies · External Secrets Operator |
-| **Autoscaling** | Karpenter: node provisioning < 60s · ~30% cost reduction vs static node groups |
-
-> Full repo: [github.com/vanessa9373/portfolio-devops-project](https://github.com/vanessa9373/portfolio-devops-project)  
-> DevOps angle: every production pattern — GitOps, observability, security, cost — implemented, not just described
+| **Autoscaling** | Karpenter: node provisioning <60s · ~30% cost reduction vs static node groups |
 
 ---
 
-### 6. [aws-apac-forage](./aws-apac-forage)
-**AWS APAC Solutions Architecture — Forage Virtual Experience**
+### 6. AWS APAC Solutions Architecture Simulation
 
-Simulated full SA/SE engagement: discovery → diagnosis → architecture → stakeholder presentation.
+> `./aws-apac-forage`
+
+Simulated full SA/SE engagement — from technical discovery to architecture design to stakeholder presentation. Certified by AWS × Forage.
 
 | Component | Implementation |
 |-----------|---------------|
-| **Discovery** | Mapped current single-EC2 architecture, identified all single points of failure |
-| **Architecture** | Elastic Beanstalk + RDS Multi-AZ + CloudFront (PriceClass_200 for APAC) + Route 53 |
-| **Communication** | Restaurant analogy to explain Auto Scaling to non-technical client · approved first meeting |
+| **Discovery** | Mapped single-EC2 architecture, identified all single points of failure |
+| **Architecture** | Elastic Beanstalk + RDS Multi-AZ + CloudFront (PriceClass_200) + Route 53 |
+| **Communication** | Restaurant analogy to explain Auto Scaling to a non-technical client |
 | **Objection handling** | Reframed $70→$280/month cost as risk elimination: 3 outages × $5K = $15K/quarter risk |
-| **ADRs** | Elastic Beanstalk over EKS (right-sized for client ops capability) · CloudFront PriceClass_200 |
+| **ADRs** | Elastic Beanstalk over EKS (right-sized for client ops capability) |
 
-> SE angle: Demonstrates the full pre-sales motion — discovery, design, communication, objection handling  
-> Certified by AWS · Forage · September 2025
+**SE angle:** Demonstrates the complete pre-sales motion — discovery → design → communication → objection handling
 
 ---
 
 ## Labs
 
-19 hands-on cloud infrastructure labs covering DevOps, Kubernetes, SRE, security, and cost optimization.
+19 hands-on cloud infrastructure labs covering Kubernetes, GitOps, chaos engineering, SRE, security, and FinOps.
 
 | # | Lab | Focus |
 |---|-----|-------|
@@ -150,7 +193,8 @@ Simulated full SA/SE engagement: discovery → diagnosis → architecture → st
 
 | | |
 |--|--|
-| 🌐 **Portfolio** | [jenellavan.com](https://jenellavan.com) |
-| 💼 **LinkedIn** | [linkedin.com/in/vanessajen](https://linkedin.com/in/vanessajen) |
-| 📧 **Email** | [jenellaawo93@gmail.com](mailto:jenellaawo93@gmail.com) |
-| 📍 **Location** | Seattle, WA · Remote-Ready · Open to Relocation |
+| Live Portfolio | [jenellavan.com](https://jenellavan.com) |
+| Architecture Diagrams | [jenellavan.com/architecture.html](https://jenellavan.com/architecture.html) |
+| LinkedIn | [linkedin.com/in/vanessajen](https://linkedin.com/in/vanessajen) |
+| Email | [jenellaawo93@gmail.com](mailto:jenellaawo93@gmail.com) |
+| Location | Seattle, WA · Remote-Ready · Open to Relocation |
